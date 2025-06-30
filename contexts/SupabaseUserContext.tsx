@@ -28,6 +28,7 @@ export function SupabaseUserProvider({ children }: { children: React.ReactNode }
   const [friends, setFriends] = useState<Friendship[]>([]);
   const [loading, setLoading] = useState(true);
 
+  // This useEffect loads the initial data when the user logs in
   useEffect(() => {
     if (user) {
       loadProfile();
@@ -39,16 +40,56 @@ export function SupabaseUserProvider({ children }: { children: React.ReactNode }
     }
   }, [user]);
 
-  const loadProfile = async () => {
+  // --- THIS IS THE NEW REAL-TIME LISTENER ---
+  // It listens for any changes to friendships involving the current user.
+  useEffect(() => {
     if (!user) return;
 
+    const friendsSubscription = supabase
+      .channel(`public:friendships:user=${user.id}`)
+      .on(
+        'postgres_changes',
+        {
+          event: '*', // Listen for INSERT, UPDATE, DELETE
+          schema: 'public',
+          table: 'friendships',
+          filter: `requester_id=eq.${user.id}`,
+        },
+        (payload) => {
+          console.log('Friendship change detected (I am the requester), reloading friends...');
+          loadFriends();
+        }
+      )
+      .on(
+        'postgres_changes',
+        {
+          event: '*', // Listen for INSERT, UPDATE, DELETE
+          schema: 'public',
+          table: 'friendships',
+          filter: `addressee_id=eq.${user.id}`,
+        },
+        (payload) => {
+          console.log('Friendship change detected (I am the addressee), reloading friends...');
+          loadFriends();
+        }
+      )
+      .subscribe();
+
+    // Cleanup the listener when the user logs out or the app closes
+    return () => {
+      supabase.removeChannel(friendsSubscription);
+    };
+  }, [user]);
+
+
+  const loadProfile = async () => {
+    if (!user) return;
     try {
       const { data, error } = await supabase
         .from('users')
         .select('*')
         .eq('id', user.id)
         .single();
-
       if (error) throw error;
       setProfile(data);
     } catch (error) {
@@ -58,7 +99,6 @@ export function SupabaseUserProvider({ children }: { children: React.ReactNode }
 
   const loadFriends = async () => {
     if (!user) return;
-
     try {
       const { data, error } = await supabase
         .from('friendships')
@@ -69,7 +109,6 @@ export function SupabaseUserProvider({ children }: { children: React.ReactNode }
         `)
         .or(`requester_id.eq.${user.id},addressee_id.eq.${user.id}`)
         .order('created_at', { ascending: false });
-
       if (error) throw error;
       setFriends(data || []);
     } catch (error) {
@@ -81,15 +120,12 @@ export function SupabaseUserProvider({ children }: { children: React.ReactNode }
 
   const updateProfile = async (updates: Partial<UserProfile>) => {
     if (!user) return;
-
     try {
       const { error } = await supabase
         .from('users')
         .update(updates)
         .eq('id', user.id);
-
       if (error) throw error;
-      
       setProfile(prev => prev ? { ...prev, ...updates } : null);
     } catch (error) {
       console.error('Error updating profile:', error);
@@ -99,35 +135,26 @@ export function SupabaseUserProvider({ children }: { children: React.ReactNode }
 
   const sendFriendRequest = async (email: string) => {
     if (!user) return { error: 'Not authenticated' };
-
     try {
-      // Find user by email
       const { data: targetUser, error: userError } = await supabase
         .from('users')
         .select('id')
         .eq('email', email.toLowerCase())
         .single();
-
       if (userError || !targetUser) {
         return { error: 'User not found with this email address' };
       }
-
       if (targetUser.id === user.id) {
         return { error: 'You cannot add yourself as a friend' };
       }
-
-      // Check if friendship already exists
       const { data: existingFriendship } = await supabase
         .from('friendships')
         .select('id')
         .or(`and(requester_id.eq.${user.id},addressee_id.eq.${targetUser.id}),and(requester_id.eq.${targetUser.id},addressee_id.eq.${user.id})`)
         .single();
-
       if (existingFriendship) {
         return { error: 'Friend request already exists' };
       }
-
-      // Create friendship
       const { error: friendshipError } = await supabase
         .from('friendships')
         .insert({
@@ -135,10 +162,7 @@ export function SupabaseUserProvider({ children }: { children: React.ReactNode }
           addressee_id: targetUser.id,
           status: 'pending',
         });
-
       if (friendshipError) throw friendshipError;
-
-      await refreshFriends();
       return {};
     } catch (error) {
       console.error('Error sending friend request:', error);
@@ -150,13 +174,9 @@ export function SupabaseUserProvider({ children }: { children: React.ReactNode }
     try {
       const { error } = await supabase
         .from('friendships')
-        .update({ 
-          status: accept ? 'accepted' : 'blocked' 
-        })
+        .update({ status: accept ? 'accepted' : 'blocked' })
         .eq('id', friendshipId);
-
       if (error) throw error;
-      await refreshFriends();
     } catch (error) {
       console.error('Error responding to friend request:', error);
     }
@@ -166,16 +186,11 @@ export function SupabaseUserProvider({ children }: { children: React.ReactNode }
     try {
       const friendship = friends.find(f => f.id === friendshipId);
       if (!friendship) return;
-
       const { error } = await supabase
         .from('friendships')
-        .update({ 
-          can_view_prayers: !friendship.can_view_prayers 
-        })
+        .update({ can_view_prayers: !friendship.can_view_prayers })
         .eq('id', friendshipId);
-
       if (error) throw error;
-      await refreshFriends();
     } catch (error) {
       console.error('Error toggling prayer access:', error);
     }

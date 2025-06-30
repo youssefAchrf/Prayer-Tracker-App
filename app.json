@@ -32,7 +32,15 @@
     "web": {
       "bundler": "metro",
       "output": "single",
-      "favicon": "./assets/images/favicon.png"
+      "favicon": "./assets/images/favicon.png",
+      
+      "name": "Prayer Tracker",
+      "shortName": "Prayers",
+      "themeColor": "#059669",
+      "backgroundColor": "#f9fafb",
+      "display": "standalone",
+      "scope": "/",
+      "startUrl": "/"
     },
     "plugins": [
       "expo-router",

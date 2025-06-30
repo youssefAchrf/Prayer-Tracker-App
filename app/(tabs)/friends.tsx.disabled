@@ -9,44 +9,59 @@ import {
   TextInput,
   Platform,
   StatusBar,
+  ActivityIndicator,
+  Alert,
 } from 'react-native';
-import { 
-  Plus, 
-  Search, 
-  UserPlus, 
-  Check, 
-  X, 
-  Eye, 
+import {
+  Plus,
+  Search,
+  UserPlus,
+  Check,
+  X,
+  Eye,
   EyeOff,
   Users,
   User as UserIcon,
-  Mail
+  Mail,
+  ChevronRight
 } from 'lucide-react-native';
 import { useUser } from '@/contexts/UserContext';
 import { Friend } from '@/types/prayer';
+import { supabase } from '@/lib/supabase';
+import { router } from 'expo-router';
 
 export default function FriendsScreen() {
-  const { friends, addFriend, updateFriendStatus, toggleFriendPrayerAccess } = useUser();
+  const { user, friends, updateFriendStatus, toggleFriendPrayerAccess } = useUser();
   const [searchQuery, setSearchQuery] = useState('');
   const [showAddFriend, setShowAddFriend] = useState(false);
   const [newFriendEmail, setNewFriendEmail] = useState('');
+  const [loading, setLoading] = useState(false);
 
   const acceptedFriends = friends.filter(f => f.status === 'accepted');
   const pendingFriends = friends.filter(f => f.status === 'pending');
 
-  const handleAddFriend = () => {
-    if (newFriendEmail.trim()) {
-      const newFriend: Friend = {
-        id: 'friend_' + Date.now(),
-        name: newFriendEmail.split('@')[0] || 'Friend', // Use email prefix as name
-        email: newFriendEmail.trim(),
-        isPrivate: false,
-        status: 'pending',
-        canViewPrayers: false,
-      };
-      addFriend(newFriend);
-      setNewFriendEmail('');
-      setShowAddFriend(false);
+  // --- FIX #1: THIS FUNCTION IS NOW CORRECT ---
+  // It calls the Supabase database function instead of creating a fake ID.
+  const handleAddFriend = async () => {
+    console.log("--- I AM USING THE NEW, CORRECT ADD FRIEND FUNCTION ---");
+
+    if (newFriendEmail.trim() && !loading) {
+      setLoading(true);
+
+      const { error } = await supabase.rpc('create_friend_request', {
+        friend_email: newFriendEmail.trim().toLowerCase(),
+      });
+
+      setLoading(false);
+
+      if (error) {
+        console.error('Error sending friend request:', error);
+        Alert.alert('Error', 'Could not send friend request. Please check the email and try again.');
+      } else {
+        Alert.alert('Success', 'Friend request sent!');
+        setNewFriendEmail('');
+        setShowAddFriend(false);
+      }
     }
   };
 
@@ -55,21 +70,15 @@ export default function FriendsScreen() {
     (friend.email && friend.email.toLowerCase().includes(searchQuery.toLowerCase()))
   );
 
-  const getMockPrayerStats = () => {
-    return {
-      completed: Math.floor(Math.random() * 5) + 1,
-      jamaah: Math.floor(Math.random() * 3) + 1,
-    };
+  const handleFriendPress = (friend: Friend) => {
+    router.push(`/friends/${friend.id}`);
   };
 
   return (
     <SafeAreaView style={styles.container}>
       <View style={styles.header}>
         <Text style={styles.headerTitle}>Friends</Text>
-        <TouchableOpacity
-          style={styles.addButton}
-          onPress={() => setShowAddFriend(true)}
-        >
+        <TouchableOpacity style={styles.addButton} onPress={() => setShowAddFriend(true)}>
           <Plus size={20} color="#ffffff" />
         </TouchableOpacity>
       </View>
@@ -107,57 +116,80 @@ export default function FriendsScreen() {
               />
             </View>
             <View style={styles.buttonRow}>
-              <TouchableOpacity
-                style={[styles.button, styles.cancelButton]}
-                onPress={() => {
-                  setShowAddFriend(false);
-                  setNewFriendEmail('');
-                }}
-              >
+              <TouchableOpacity style={[styles.button, styles.cancelButton]} onPress={() => setShowAddFriend(false)}>
                 <Text style={styles.cancelButtonText}>Cancel</Text>
               </TouchableOpacity>
               <TouchableOpacity
-                style={[styles.button, styles.addFriendButton]}
+                style={[styles.button, styles.addFriendButton, loading && styles.disabledButton]}
                 onPress={handleAddFriend}
+                disabled={loading}
               >
-                <UserPlus size={16} color="#ffffff" />
-                <Text style={styles.addButtonText}>Send Request</Text>
+                {loading ? (
+                  <ActivityIndicator size="small" color="#ffffff" />
+                ) : (
+                  <>
+                    <UserPlus size={16} color="#ffffff" />
+                    <Text style={styles.addButtonText}>Send Request</Text>
+                  </>
+                )}
               </TouchableOpacity>
             </View>
           </View>
         )}
 
-        {/* Pending Requests */}
+        {/* --- FIX #2: THIS SECTION IS NOW CORRECT --- */}
+        {/* It shows the "Accept/Reject" buttons to the correct person. */}
         {pendingFriends.length > 0 && (
           <View style={styles.section}>
             <Text style={styles.sectionTitle}>Pending Requests</Text>
-            {pendingFriends.map((friend) => (
-              <View key={friend.id} style={styles.friendCard}>
-                <View style={styles.friendInfo}>
-                  <View style={styles.avatar}>
-                    <UserIcon size={20} color="#6b7280" />
+            {pendingFriends.map((friendRequest) => {
+              if (user && friendRequest.addressee_id === user.id) {
+                return (
+                  <View key={friendRequest.id} style={styles.friendCard}>
+                    <View style={styles.friendInfo}>
+                      <View style={styles.avatar}>
+                        <UserIcon size={20} color="#6b7280" />
+                      </View>
+                      <View style={styles.friendDetails}>
+                        <Text style={styles.friendName}>{friendRequest.name}</Text>
+                        <Text style={styles.friendEmail}>{friendRequest.email}</Text>
+                      </View>
+                    </View>
+                    <View style={styles.pendingActions}>
+                      <TouchableOpacity
+                        style={styles.acceptButton}
+                        onPress={() => updateFriendStatus(friendRequest.id, 'accepted')}
+                      >
+                        <Check size={16} color="#ffffff" />
+                      </TouchableOpacity>
+                      <TouchableOpacity
+                        style={styles.rejectButton}
+                        onPress={() => updateFriendStatus(friendRequest.id, 'blocked')}
+                      >
+                        <X size={16} color="#ffffff" />
+                      </TouchableOpacity>
+                    </View>
                   </View>
-                  <View style={styles.friendDetails}>
-                    <Text style={styles.friendName}>{friend.name}</Text>
-                    <Text style={styles.friendEmail}>{friend.email}</Text>
+                );
+              }
+              else if (user && friendRequest.requester_id === user.id) {
+                return (
+                  <View key={friendRequest.id} style={styles.friendCard}>
+                    <View style={styles.friendInfo}>
+                      <View style={styles.avatar}>
+                        <UserIcon size={20} color="#6b7280" />
+                      </View>
+                      <View style={styles.friendDetails}>
+                        <Text style={styles.friendName}>{friendRequest.name}</Text>
+                        <Text style={styles.friendEmail}>{friendRequest.email}</Text>
+                      </View>
+                    </View>
+                    <Text style={styles.pendingText}>Request Sent</Text>
                   </View>
-                </View>
-                <View style={styles.pendingActions}>
-                  <TouchableOpacity
-                    style={styles.acceptButton}
-                    onPress={() => updateFriendStatus(friend.id, 'accepted')}
-                  >
-                    <Check size={16} color="#ffffff" />
-                  </TouchableOpacity>
-                  <TouchableOpacity
-                    style={styles.rejectButton}
-                    onPress={() => updateFriendStatus(friend.id, 'blocked')}
-                  >
-                    <X size={16} color="#ffffff" />
-                  </TouchableOpacity>
-                </View>
-              </View>
-            ))}
+                );
+              }
+              return null;
+            })}
           </View>
         )}
 
@@ -169,33 +201,33 @@ export default function FriendsScreen() {
               <Users size={48} color="#d1d5db" />
               <Text style={styles.emptyStateTitle}>No friends yet</Text>
               <Text style={styles.emptyStateText}>
-                Add friends by their email address to see their prayer progress and stay motivated together
+                Add friends by their email to stay motivated together.
               </Text>
             </View>
           ) : (
-            filteredFriends.map((friend) => {
-              const stats = getMockPrayerStats();
-              return (
-                <View key={friend.id} style={styles.friendCard}>
-                  <View style={styles.friendInfo}>
-                    <View style={styles.avatar}>
-                      <UserIcon size={20} color="#6b7280" />
-                    </View>
-                    <View style={styles.friendDetails}>
-                      <Text style={styles.friendName}>{friend.name}</Text>
-                      <Text style={styles.friendEmail}>{friend.email}</Text>
-                      {friend.canViewPrayers ? (
-                        <Text style={styles.friendStats}>
-                          {stats.completed}/5 prayers • {stats.jamaah} in Jamaa'ah
-                        </Text>
-                      ) : (
-                        <Text style={styles.privateText}>Prayer data is private</Text>
-                      )}
-                    </View>
+            filteredFriends.map((friend) => (
+              <TouchableOpacity
+                key={friend.id}
+                style={styles.friendCard}
+                onPress={() => handleFriendPress(friend)}
+                activeOpacity={0.7}
+              >
+                <View style={styles.friendInfo}>
+                  <View style={styles.avatar}>
+                    <UserIcon size={20} color="#6b7280" />
                   </View>
+                  <View style={styles.friendDetails}>
+                    <Text style={styles.friendName}>{friend.name}</Text>
+                    <Text style={styles.friendEmail}>{friend.email}</Text>
+                  </View>
+                </View>
+                <View style={styles.friendActions}>
                   <TouchableOpacity
                     style={styles.viewToggle}
-                    onPress={() => toggleFriendPrayerAccess(friend.id)}
+                    onPress={(e) => {
+                      e.stopPropagation();
+                      toggleFriendPrayerAccess(friend.id);
+                    }}
                   >
                     {friend.canViewPrayers ? (
                       <Eye size={20} color="#059669" />
@@ -203,9 +235,10 @@ export default function FriendsScreen() {
                       <EyeOff size={20} color="#6b7280" />
                     )}
                   </TouchableOpacity>
+                  <ChevronRight size={16} color="#6b7280" />
                 </View>
-              );
-            })
+              </TouchableOpacity>
+            ))
           )}
         </View>
       </ScrollView>
@@ -256,10 +289,6 @@ const styles = StyleSheet.create({
     marginTop: 16,
     marginBottom: 20,
     gap: 12,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 1 },
-    shadowOpacity: 0.05,
-    shadowRadius: 4,
     elevation: 2,
   },
   searchInput: {
@@ -273,10 +302,6 @@ const styles = StyleSheet.create({
     borderRadius: 16,
     padding: 20,
     marginBottom: 20,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.1,
-    shadowRadius: 8,
     elevation: 4,
   },
   cardTitle: {
@@ -332,6 +357,9 @@ const styles = StyleSheet.create({
   addFriendButton: {
     backgroundColor: '#059669',
   },
+  disabledButton: {
+    backgroundColor: '#047857',
+  },
   addButtonText: {
     fontSize: 14,
     fontFamily: 'Inter-Medium',
@@ -354,10 +382,6 @@ const styles = StyleSheet.create({
     padding: 16,
     borderRadius: 12,
     marginBottom: 8,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 1 },
-    shadowOpacity: 0.05,
-    shadowRadius: 4,
     elevation: 2,
   },
   friendInfo: {
@@ -381,23 +405,16 @@ const styles = StyleSheet.create({
     fontSize: 16,
     fontFamily: 'Inter-SemiBold',
     color: '#1f2937',
-    marginBottom: 2,
   },
   friendEmail: {
     fontSize: 12,
     fontFamily: 'Inter-Regular',
     color: '#6b7280',
-    marginBottom: 2,
   },
-  friendStats: {
-    fontSize: 12,
-    fontFamily: 'Inter-Regular',
-    color: '#059669',
-  },
-  privateText: {
-    fontSize: 12,
-    fontFamily: 'Inter-Regular',
-    color: '#6b7280',
+  friendActions: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
   },
   pendingActions: {
     flexDirection: 'row',
@@ -422,6 +439,11 @@ const styles = StyleSheet.create({
   viewToggle: {
     padding: 8,
   },
+  pendingText: {
+    fontFamily: 'Inter-Regular',
+    color: '#6b7280',
+    fontStyle: 'italic',
+  },
   emptyState: {
     alignItems: 'center',
     paddingVertical: 40,
@@ -431,7 +453,6 @@ const styles = StyleSheet.create({
     fontFamily: 'Inter-SemiBold',
     color: '#6b7280',
     marginTop: 16,
-    marginBottom: 8,
   },
   emptyStateText: {
     fontSize: 14,
@@ -439,6 +460,7 @@ const styles = StyleSheet.create({
     color: '#9ca3af',
     textAlign: 'center',
     lineHeight: 20,
-    paddingHorizontal: 40,
+    paddingHorizontal: 20,
+    marginTop: 8,
   },
 });

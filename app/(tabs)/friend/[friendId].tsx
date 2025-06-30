@@ -1,453 +1,522 @@
+// // import React, { useState, useEffect } from 'react';
+// // import {
+// //   View,
+// //   Text,
+// //   StyleSheet,
+// //   ScrollView,
+// //   SafeAreaView,
+// //   TouchableOpacity,
+// //   Platform,
+// //   StatusBar,
+// //   ActivityIndicator,
+// // } from 'react-native';
+// // import { useLocalSearchParams, router } from 'expo-router';
+// // import { LinearGradient } from 'expo-linear-gradient';
+// // import { ArrowLeft, Calendar, Moon, Sun, User as UserIcon } from 'lucide-react-native';
+// // import { PrayerCard } from '@/components/PrayerCard';
+// // import { ProgressCircle } from '@/components/ProgressCircle';
+// // import { useSupabaseUser } from '@/contexts/SupabaseUserContext';
+// // import { Prayer } from '@/types/prayer';
+// // import { supabase } from '@/lib/supabase';
+
+// // const DEFAULT_PRAYERS: Prayer[] = [
+// //   { name: 'Fajr', arabicName: 'الفجر', time: '05:30' },
+// //   { name: 'Dhuhr', arabicName: 'الظهر', time: '12:30' },
+// //   { name: 'Asr', arabicName: 'العصر', time: '15:45' },
+// //   { name: 'Maghrib', arabicName: 'المغرب', time: '18:15' },
+// //   { name: 'Isha', arabicName: 'العشاء', time: '19:45' },
+// // ];
+
+// // export default function FriendPrayerDetailScreen() {
+// //   const { friendId } = useLocalSearchParams<{ friendId: string }>();
+// //   const { friends } = useSupabaseUser();
+  
+// //   const [friendPrayers, setFriendPrayers] = useState<Prayer[]>(DEFAULT_PRAYERS);
+// //   const [loading, setLoading] = useState(true);
+
+// //   const friendship = friends.find(f => f.requester.id === friendId || f.addressee.id === friendId);
+// //   const friendProfile = friendship 
+// //     ? (friendship.requester.id === friendId ? friendship.requester : friendship.addressee) 
+// //     : null;
+
+// //   useEffect(() => {
+// //     if (!friendId) {
+// //       setLoading(false);
+// //       return;
+// //     }
+
+// //     // --- THIS IS THE CORRECTED DATE LOGIC ---
+// //     // It builds the date string from your phone's local timezone.
+// //     const getLocalYYYYMMDD = (date) => {
+// //       const year = date.getFullYear();
+// //       const month = String(date.getMonth() + 1).padStart(2, '0');
+// //       const day = String(date.getDate()).padStart(2, '0');
+// //       return `${year}-${month}-${day}`;
+// //     };
+// //     const today = getLocalYYYYMMDD(new Date());
+// //     // --- END OF DATE FIX ---
+
+// //     const fetchInitialData = async () => {
+// //       setLoading(true);
+// //       const { data, error } = await supabase
+// //         .from('prayers')
+// //         .select('prayer_name, status')
+// //         .eq('user_id', friendId)
+// //         .eq('prayer_date', today);
+
+// //       if (error) {
+// //         console.error("Error fetching friend's prayer data:", error);
+// //       } else if (data) {
+// //         const updatedPrayers = DEFAULT_PRAYERS.map(defaultPrayer => {
+// //           const fetchedPrayer = data.find(p => p.prayer_name === defaultPrayer.name);
+// //           return { ...defaultPrayer, status: fetchedPrayer?.status };
+// //         });
+// //         setFriendPrayers(updatedPrayers);
+// //       }
+// //       setLoading(false);
+// //     };
+
+// //     fetchInitialData();
+
+// //     const channel = supabase
+// //       .channel(`friend-prayers-${friendId}`)
+// //       .on('postgres_changes', { event: '*', schema: 'public', table: 'prayers', filter: `user_id=eq.${friendId}` },
+// //         () => fetchInitialData()
+// //       )
+// //       .subscribe();
+
+// //     return () => {
+// //       supabase.removeChannel(channel);
+// //     };
+// //   }, [friendId]);
+
+// //   // The rest of your UI code...
+// //   const getGreeting = () => {
+// //     const hour = new Date().getHours();
+// //     if (hour < 12) return 'Good morning';
+// //     if (hour < 17) return 'Good afternoon';
+// //     return 'Good evening';
+// //   };
+  
+// //   const getGreetingIcon = () => {
+// //     const hour = new Date().getHours();
+// //     if (hour >= 6 && hour < 18) return <Sun size={20} color="#f59e0b" />;
+// //     return <Moon size={20} color="#6366f1" />;
+// //   };
+
+// //   const getTodayStats = () => {
+// //     const completed = friendPrayers.filter(p => p.status && p.status !== 'missed').length;
+// //     const jamaah = friendPrayers.filter(p => p.status === 'jamaah').length;
+// //     const onTime = friendPrayers.filter(p => p.status === 'jamaah' || p.status === 'alone').length;
+    
+// //     return {
+// //       completed: (completed / 5) * 100,
+// //       jamaah: (jamaah / 5) * 100,
+// //       onTime: (onTime / 5) * 100,
+// //     };
+// //   };
+
+// //   const formatDate = () => {
+// //     return new Date().toLocaleDateString('en-US', {
+// //       weekday: 'long', year: 'numeric', month: 'long', day: 'numeric',
+// //     });
+// //   };
+
+// //   if (loading) {
+// //     return <ActivityIndicator style={{ flex: 1 }} size="large" color="#059669" />;
+// //   }
+
+// //   if (!friendProfile) {
+// //     return (
+// //       <SafeAreaView style={styles.container}>
+// //         <Text>Friend not found.</Text>
+// //       </SafeAreaView>
+// //     );
+// //   }
+
+// //   const stats = getTodayStats();
+
+// //   return (
+// //     <SafeAreaView style={styles.container}>
+// //       <LinearGradient colors={['#059669', '#0d9488']} style={styles.header}>
+// //         <TouchableOpacity style={styles.backButton} onPress={() => router.back()}>
+// //           <ArrowLeft size={24} color="#ffffff" />
+// //         </TouchableOpacity>
+// //         <View style={styles.headerContent}>
+// //           <View style={styles.friendInfo}>
+// //             <View style={styles.avatar}><UserIcon size={24} color="#6b7280" /></View>
+// //             <View>
+// //               <Text style={styles.friendName}>{friendProfile.name}</Text>
+// //               <View style={styles.greetingContainer}>
+// //                 {getGreetingIcon()}
+// //                 <Text style={styles.greeting}>{getGreeting()}</Text>
+// //               </View>
+// //             </View>
+// //           </View>
+// //           <View style={styles.dateContainer}>
+// //             <Calendar size={16} color="#ffffff" />
+// //             <Text style={styles.date}>{formatDate()}</Text>
+// //           </View>
+// //         </View>
+// //       </LinearGradient>
+
+// //       <ScrollView style={styles.content} showsVerticalScrollIndicator={false}>
+// //         <View style={styles.statsContainer}>
+// //           <Text style={styles.sectionTitle}>{friendProfile.name}'s Progress Today</Text>
+// //           <View style={styles.progressRow}>
+// //             <ProgressCircle
+// //               percentage={stats.completed}
+// //               size={80} strokeWidth={6} color="#059669" label="Completed"
+// //               value={`${friendPrayers.filter(p => p.status && p.status !== 'missed').length}/5`}
+// //             />
+// //             <ProgressCircle
+// //               percentage={stats.jamaah}
+// //               size={80} strokeWidth={6} color="#0d9488" label="Jamaa'ah"
+// //               value={`${friendPrayers.filter(p => p.status === 'jamaah').length}/5`}
+// //             />
+// //             <ProgressCircle
+// //               percentage={stats.onTime}
+// //               size={80} strokeWidth={6} color="#f59e0b" label="On Time"
+// //               value={`${friendPrayers.filter(p => p.status === 'jamaah' || p.status === 'alone').length}/5`}
+// //             />
+// //           </View>
+// //         </View>
+
+// //         <View style={styles.prayersContainer}>
+// //           <Text style={styles.sectionTitle}>Today's Prayers</Text>
+// //           {friendPrayers.map((prayer, index) => (
+// //             <View key={`${prayer.name}-${index}`} style={styles.prayerCardWrapper}>
+// //               <PrayerCard
+// //                 prayer={prayer}
+// //                 onStatusChange={() => {}} // Read-only
+// //                 readOnly={true}
+// //               />
+// //             </View>
+// //           ))}
+// //         </View>
+// //       </ScrollView>
+// //     </SafeAreaView>
+// //   );
+// // }
+
+// // const styles = StyleSheet.create({
+// //     container: {
+// //         flex: 1,
+// //         backgroundColor: '#f9fafb',
+// //         paddingTop: Platform.OS === 'android' ? StatusBar.currentHeight : 0,
+// //       },
+// //       header: {
+// //         paddingHorizontal: 20,
+// //         paddingVertical: 24,
+// //         borderBottomLeftRadius: 24,
+// //         borderBottomRightRadius: 24,
+// //       },
+// //       backButton: {
+// //         width: 40,
+// //         height: 40,
+// //         borderRadius: 20,
+// //         backgroundColor: 'rgba(255, 255, 255, 0.2)',
+// //         justifyContent: 'center',
+// //         alignItems: 'center',
+// //         marginBottom: 16,
+// //       },
+// //       headerContent: { gap: 8 },
+// //       friendInfo: { flexDirection: 'row', alignItems: 'center', gap: 12 },
+// //       avatar: {
+// //         width: 48,
+// //         height: 48,
+// //         borderRadius: 24,
+// //         backgroundColor: 'rgba(255, 255, 255, 0.2)',
+// //         justifyContent: 'center',
+// //         alignItems: 'center',
+// //       },
+// //       friendName: { fontSize: 24, fontFamily: 'Inter-Bold', color: '#ffffff', marginBottom: 4 },
+// //       greetingContainer: { flexDirection: 'row', alignItems: 'center', gap: 6 },
+// //       greeting: { fontSize: 16, fontFamily: 'Inter-Medium', color: '#ffffff', opacity: 0.9 },
+// //       dateContainer: { flexDirection: 'row', alignItems: 'center', gap: 6 },
+// //       date: { fontSize: 14, fontFamily: 'Inter-Medium', color: '#ffffff', opacity: 0.9 },
+// //       content: { flex: 1, paddingHorizontal: 20 },
+// //       statsContainer: { marginTop: 24, marginBottom: 32 },
+// //       sectionTitle: { fontSize: 20, fontFamily: 'Inter-Bold', color: '#1f2937', marginBottom: 16 },
+// //       progressRow: { flexDirection: 'row', justifyContent: 'space-around', paddingVertical: 16 },
+// //       prayersContainer: { marginBottom: 32 },
+// //       prayerCardWrapper: { opacity: 0.9 },
+// // });
+// import React, { useState, useEffect } from 'react';
+// import { View, Text, StyleSheet, ScrollView, SafeAreaView, TouchableOpacity, Platform, StatusBar, ActivityIndicator } from 'react-native';
+// import { useLocalSearchParams, router } from 'expo-router';
+// import { LinearGradient } from 'expo-linear-gradient';
+// import { ArrowLeft, Calendar as CalendarIcon, Moon, Sun, User as UserIcon } from 'lucide-react-native';
+// import { PrayerCard } from '@/components/PrayerCard';
+// import { useSupabaseUser } from '@/contexts/SupabaseUserContext';
+// import { Prayer } from '@/types/prayer';
+// import { supabase } from '@/lib/supabase';
+// import DateTimePickerModal from "react-native-modal-datetime-picker";
+
+// const DEFAULT_PRAYERS: Prayer[] = [
+//     { name: 'Fajr', arabicName: 'الفجر', time: '05:30' },
+//     // ... other prayers
+// ];
+
+// const getLocalYYYYMMDD = (date: Date): string => {
+//     // ... (This function remains the simple version)
+//     const year = date.getFullYear();
+//     const month = String(date.getMonth() + 1).padStart(2, '0');
+//     const day = String(date.getDate()).padStart(2, '0');
+//     return `${year}-${month}-${day}`;
+// };
+
+// export default function FriendPrayerDetailScreen() {
+//   const { friendId } = useLocalSearchParams<{ friendId: string }>();
+//   const { friends } = useSupabaseUser();
+  
+//   const [friendPrayers, setFriendPrayers] = useState<Prayer[]>(DEFAULT_PRAYERS);
+//   const [loading, setLoading] = useState(true);
+//   const [selectedDate, setSelectedDate] = useState(new Date());
+//   const [isDatePickerVisible, setDatePickerVisibility] = useState(false);
+
+//   const friendship = friends.find(f => f.requester.id === friendId || f.addressee.id === friendId);
+//   const friendProfile = friendship 
+//     ? (friendship.requester.id === friendId ? friendship.requester : friendship.addressee) 
+//     : null;
+
+//   useEffect(() => {
+//     if (!friendId) return;
+
+//     const fetchInitialData = async () => {
+//       setLoading(true);
+//       const dateString = getLocalYYYYMMDD(selectedDate);
+//       const { data, error } = await supabase
+//         .from('prayers')
+//         .select('prayer_name, status')
+//         .eq('user_id', friendId)
+//         .eq('prayer_date', dateString);
+      
+//       if (data) {
+//         const updatedPrayers = DEFAULT_PRAYERS.map(dp => ({
+//           ...dp,
+//           status: data.find(p => p.prayer_name === dp.name)?.status || null
+//         }));
+//         setFriendPrayers(updatedPrayers);
+//       }
+//       setLoading(false);
+//     };
+
+//     fetchInitialData();
+//   }, [friendId, selectedDate]); // Re-fetch when friendId or selectedDate changes
+
+//   const showDatePicker = () => setDatePickerVisibility(true);
+//   const hideDatePicker = () => setDatePickerVisibility(false);
+
+//   const handleConfirmDate = (date: Date) => {
+//     setSelectedDate(date);
+//     hideDatePicker();
+//   };
+
+//   const displayDate = selectedDate.toLocaleDateString('en-US', { weekday: 'long', month: 'long', day: 'numeric' });
+
+//   if (loading) {
+//     return <ActivityIndicator style={{ flex: 1 }} size="large" />;
+//   }
+
+//   if (!friendProfile) {
+//     return <Text>Friend not found.</Text>;
+//   }
+
+//   return (
+//     <SafeAreaView style={styles.container}>
+//       <LinearGradient colors={['#059669', '#0d9488']} style={styles.header}>
+//         <TouchableOpacity style={styles.backButton} onPress={() => router.back()}>
+//           <ArrowLeft size={24} color="#ffffff" />
+//         </TouchableOpacity>
+//         <View style={styles.friendInfo}>
+//           <UserIcon size={24} color="#fff" />
+//           <Text style={styles.friendName}>{friendProfile.name}</Text>
+//         </View>
+//         <TouchableOpacity style={styles.datePickerButton} onPress={showDatePicker}>
+//             <CalendarIcon size={16} color="#ffffff" />
+//             <Text style={styles.date}>{displayDate}</Text>
+//         </TouchableOpacity>
+//       </LinearGradient>
+
+//       <DateTimePickerModal
+//         isVisible={isDatePickerVisible}
+//         mode="date"
+//         onConfirm={handleConfirmDate}
+//         onCancel={hideDatePicker}
+//         date={selectedDate}
+//       />
+      
+//       <ScrollView style={styles.content}>
+//         <Text style={styles.sectionTitle}>{friendProfile.name}'s Prayers</Text>
+//         {friendPrayers.map((prayer, index) => (
+//           <PrayerCard
+//             key={index}
+//             prayer={prayer}
+//             onStatusChange={() => {}}
+//             readOnly={true}
+//           />
+//         ))}
+//       </ScrollView>
+//     </SafeAreaView>
+//   );
+// }
+
+// const styles = StyleSheet.create({
+//     // Add your full styles object here
+//     container: { flex: 1, backgroundColor: '#f9fafb' },
+//     header: { padding: 20, paddingTop: 50, },
+//     backButton: { position: 'absolute', top: 50, left: 20, zIndex: 1 },
+//     friendInfo: { alignItems: 'center', marginBottom: 10 },
+//     friendName: { color: '#fff', fontSize: 24, fontWeight: 'bold' },
+//     datePickerButton: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 8, marginTop: 8 },
+//     date: { color: '#fff', fontSize: 16 },
+//     content: { padding: 20 },
+//     sectionTitle: { fontSize: 20, fontWeight: 'bold', marginBottom: 10 }
+// });
 import React, { useState, useEffect } from 'react';
-import {
-  View,
-  Text,
-  StyleSheet,
-  ScrollView,
-  SafeAreaView,
-  TouchableOpacity,
-  Platform,
-  StatusBar,
-  ActivityIndicator, // We'll show a loading spinner
-} from 'react-native';
+import { View, Text, StyleSheet, ScrollView, SafeAreaView, TouchableOpacity, Platform, StatusBar, ActivityIndicator } from 'react-native';
 import { useLocalSearchParams, router } from 'expo-router';
 import { LinearGradient } from 'expo-linear-gradient';
-import { ArrowLeft, Calendar, Moon, Sun, User as UserIcon } from 'lucide-react-native';
+import { ArrowLeft, Calendar as CalendarIcon } from 'lucide-react-native';
 import { PrayerCard } from '@/components/PrayerCard';
-import { ProgressCircle } from '@/components/ProgressCircle';
-import { useUser } from '@/contexts/UserContext';
+import { useSupabaseUser } from '@/contexts/SupabaseUserContext';
 import { Prayer } from '@/types/prayer';
-import { supabase } from '@/lib/supabase'; // Make sure this path to your Supabase client is correct
+import { supabase } from '@/lib/supabase';
+import DateTimePickerModal from "react-native-modal-datetime-picker";
 
-const DEFAULT_PRAYERS: Prayer[] = [
-  { name: 'Fajr', arabicName: 'الفجر', time: '05:30' },
-  { name: 'Dhuhr', arabicName: 'الظهر', time: '12:30' },
-  { name: 'Asr', arabicName: 'العصر', time: '15:45' },
-  { name: 'Maghrib', arabicName: 'المغرب', time: '18:15' },
-  { name: 'Isha', arabicName: 'العشاء', time: '19:45' },
+// This now correctly has all 5 prayers, without hardcoded times
+const DEFAULT_PRAYERS: Omit<Prayer, 'time'>[] = [
+    { name: 'Fajr', arabicName: 'الفجر' },
+    { name: 'Dhuhr', arabicName: 'الظهر' },
+    { name: 'Asr', arabicName: 'العصر' },
+    { name: 'Maghrib', arabicName: 'المغرب' },
+    { name: 'Isha', arabicName: 'العشاء' },
 ];
+
+const getLocalYYYYMMDD = (date: Date): string => {
+    const year = date.getFullYear();
+    const month = String(date.getMonth() + 1).padStart(2, '0');
+    const day = String(date.getDate()).padStart(2, '0');
+    return `${year}-${month}-${day}`;
+};
+
+// We add the time fetching logic here as well
+const fetchPrayerTimes = async (date: Date) => {
+    const dateString = getLocalYYYYMMDD(date);
+    try {
+      const response = await fetch(`https://api.aladhan.com/v1/timingsByCity/${dateString}?city=Cairo&country=Egypt&method=5`);
+      const data = await response.json();
+      if (data.code === 200) return data.data.timings;
+    } catch (error) {
+      console.error("Failed to fetch prayer times:", error);
+    }
+    return null;
+  };
+
+const formatTo12Hour = (time24: string): string => {
+    if (!time24) return '--:--';
+    const [hours, minutes] = time24.split(':');
+    const h = parseInt(hours, 10);
+    const ampm = h >= 12 ? 'PM' : 'AM';
+    const hour12 = h % 12 || 12;
+    return `${hour12}:${minutes} ${ampm}`;
+};
 
 export default function FriendPrayerDetailScreen() {
   const { friendId } = useLocalSearchParams<{ friendId: string }>();
-  const { friends } = useUser();
+  const { friends } = useSupabaseUser();
   
-  // State to hold the real prayer data and loading status
-  const [friendPrayers, setFriendPrayers] = useState<Prayer[]>(DEFAULT_PRAYERS);
+  const [friendPrayers, setFriendPrayers] = useState<Prayer[]>([]);
   const [loading, setLoading] = useState(true);
+  const [selectedDate, setSelectedDate] = useState(new Date());
+  const [isDatePickerVisible, setDatePickerVisibility] = useState(false);
 
-  const friend = friends.find(f => f.id === friendId);
+  const friendship = friends.find(f => f.requester.id === friendId || f.addressee.id === friendId);
+  const friendProfile = friendship 
+    ? (friendship.requester.id === friendId ? friendship.requester : friendship.addressee) 
+    : null;
 
   useEffect(() => {
-    // If we can't find the friend or don't have permission, don't do anything.
-    if (!friend || !friend.canViewPrayers) {
-      setLoading(false);
-      return;
-    }
+    if (!friendId) return;
 
-    // IMPORTANT: Make sure `friend.id` is the actual Supabase auth user ID (UUID)
-    // If Bolt stored it in another field like `friend.user_id`, change it here.
-    const friend_user_id = friend.id;
-    const today = new Date().toISOString().split('T')[0]; // Format: YYYY-MM-DD
-
-    // This function fetches the initial data for today
-    const fetchInitialData = async () => {
-      const { data, error } = await supabase
-        .from('prayer_logs') // Assumes your table is named 'prayer_logs'
-        .select('prayer_name, status') // Select only the needed columns
-        .eq('user_id', friend_user_id) // Filter by the friend's user ID
-        .eq('date', today); // Filter for today's records
-
-      if (error) {
-        console.error("Error fetching friend's prayer data:", error);
-        setLoading(false);
-        return;
-      }
+    const loadDataForDate = async () => {
+      setLoading(true);
+      const dateString = getLocalYYYYMMDD(selectedDate);
       
-      if (data) {
-        // Merge the fetched data with the default prayer list
-        // to ensure all 5 prayers are always displayed correctly.
-        const updatedPrayers = DEFAULT_PRAYERS.map(defaultPrayer => {
-          const fetchedPrayer = data.find(p => p.prayer_name === defaultPrayer.name);
-          return {
-            ...defaultPrayer,
-            status: fetchedPrayer?.status, // Use real status if found, otherwise it's undefined (not prayed)
-          };
-        });
-        setFriendPrayers(updatedPrayers);
-      }
+      // 1. Fetch times and statuses concurrently
+      const [times, statusesResponse] = await Promise.all([
+        fetchPrayerTimes(selectedDate),
+        supabase.from('prayers').select('prayer_name, status').eq('user_id', friendId).eq('prayer_date', dateString)
+      ]);
+
+      // 2. Combine the data
+      const { data: prayerStatuses } = statusesResponse;
+      const updatedPrayers = DEFAULT_PRAYERS.map(dp => ({
+        ...dp,
+        time: times ? formatTo12Hour(times[dp.name]) : '--:--',
+        status: prayerStatuses?.find(p => p.prayer_name === dp.name)?.status || null,
+      }));
+
+      setFriendPrayers(updatedPrayers);
       setLoading(false);
     };
 
-    // Fetch the data when the screen loads
-    fetchInitialData();
+    loadDataForDate();
+  }, [friendId, selectedDate]);
 
-    // Create a real-time subscription to listen for any changes
-    const channel = supabase
-      .channel(`friend-prayers-${friend_user_id}`)
-      .on(
-        'postgres_changes',
-        {
-          event: '*', // Listen for INSERT, UPDATE, DELETE
-          schema: 'public',
-          table: 'prayer_logs',
-          filter: `user_id=eq.${friend_user_id}`, // IMPORTANT: Only get updates for this specific friend
-        },
-        (payload) => {
-          // When a change is detected, simply re-fetch the data to update the UI
-          console.log('Change received for friend!', payload);
-          fetchInitialData();
-        }
-      )
-      .subscribe();
+  const showDatePicker = () => setDatePickerVisibility(true);
+  const hideDatePicker = () => setDatePickerVisibility(false);
 
-    // This is a cleanup function. It runs when you navigate away from this screen
-    // to remove the listener and prevent memory leaks.
-    return () => {
-      supabase.removeChannel(channel);
-    };
-  }, [friendId, friend?.canViewPrayers]); // Re-run this effect if the friendId or their privacy setting changes
-
-
-  // --- UI AND RENDER LOGIC ---
-
-  if (loading) {
-    return (
-      <SafeAreaView style={styles.container}>
-        <View style={{ flex: 1, justifyContent: 'center', alignItems: 'center' }}>
-          <ActivityIndicator size="large" color="#059669" />
-          <Text style={{ marginTop: 10, fontFamily: 'Inter-Regular', color: '#6b7280' }}>
-            Loading {friend?.name}'s prayers...
-          </Text>
-        </View>
-      </SafeAreaView>
-    );
-  }
-
-  if (!friend) {
-    return (
-      <SafeAreaView style={styles.container}>
-        <View style={styles.header}>
-          <TouchableOpacity style={styles.backButton} onPress={() => router.back()}>
-            <ArrowLeft size={24} color="#ffffff" />
-          </TouchableOpacity>
-          <Text style={styles.headerTitle}>Friend Not Found</Text>
-        </View>
-      </SafeAreaView>
-    );
-  }
-  
-  // The rest of your component that renders the UI. It will now use the live `friendPrayers` state.
-  // ... (All the remaining code from the original file, like getGreeting, getTodayStats, the main return(), and styles, goes here)
-  const getGreeting = () => {
-    const hour = new Date().getHours();
-    if (hour < 12) return 'Good morning';
-    if (hour < 17) return 'Good afternoon';
-    return 'Good evening';
+  const handleConfirmDate = (date: Date) => {
+    setSelectedDate(date);
+    hideDatePicker();
   };
 
-  const getGreetingIcon = () => {
-    const hour = new Date().getHours();
-    if (hour >= 6 && hour < 18) {
-      return <Sun size={20} color="#f59e0b" />;
-    }
-    return <Moon size={20} color="#6366f1" />;
-  };
+  const displayDate = selectedDate.toLocaleDateString('en-US', { weekday: 'long', month: 'long', day: 'numeric' });
 
-  const getTodayStats = () => {
-    const completed = friendPrayers.filter(p => p.status && p.status !== 'missed').length;
-    const jamaah = friendPrayers.filter(p => p.status === 'jamaah').length;
-    const onTime = friendPrayers.filter(p => p.status === 'jamaah' || p.status === 'alone').length;
-    
-    return {
-      completed: (completed / 5) * 100,
-      jamaah: (jamaah / 5) * 100,
-      onTime: (onTime / 5) * 100,
-    };
-  };
-
-  const stats = getTodayStats();
-
-  const formatDate = () => {
-    const today = new Date();
-    return today.toLocaleDateString('en-US', {
-      weekday: 'long',
-      year: 'numeric',
-      month: 'long',
-      day: 'numeric',
-    });
-  };
-
-  if (!friend.canViewPrayers) {
-    return (
-      <SafeAreaView style={styles.container}>
-        <LinearGradient
-          colors={['#059669', '#0d9488']}
-          style={styles.header}
-        >
-          <TouchableOpacity
-            style={styles.backButton}
-            onPress={() => router.back()}
-          >
-            <ArrowLeft size={24} color="#ffffff" />
-          </TouchableOpacity>
-          <View style={styles.headerContent}>
-            <View style={styles.friendInfo}>
-              <View style={styles.avatar}>
-                <UserIcon size={24} color="#6b7280" />
-              </View>
-              <Text style={styles.friendName}>{friend.name}</Text>
-            </View>
-          </View>
-        </LinearGradient>
-
-        <View style={styles.privateContainer}>
-          <View style={styles.privateCard}>
-            <Text style={styles.privateTitle}>Prayer Data is Private</Text>
-            <Text style={styles.privateText}>
-              {friend.name} has chosen to keep their prayer data private. 
-              You can ask them to enable prayer sharing in their friend settings.
-            </Text>
-          </View>
-        </View>
-      </SafeAreaView>
-    );
-  }
+  if (!friendProfile) return <View style={styles.container}><Text>Friend not found.</Text></View>
 
   return (
     <SafeAreaView style={styles.container}>
-      <LinearGradient
-        colors={['#059669', '#0d9488']}
-        style={styles.header}
-      >
-        <TouchableOpacity
-          style={styles.backButton}
-          onPress={() => router.back()}
-        >
+      <LinearGradient colors={['#059669', '#0d9488']} style={styles.header}>
+        <TouchableOpacity style={styles.backButton} onPress={() => router.back()}>
           <ArrowLeft size={24} color="#ffffff" />
         </TouchableOpacity>
-        <View style={styles.headerContent}>
-          <View style={styles.friendInfo}>
-            <View style={styles.avatar}>
-              <UserIcon size={24} color="#6b7280" />
-            </View>
-            <View>
-              <Text style={styles.friendName}>{friend.name}</Text>
-              <View style={styles.greetingContainer}>
-                {getGreetingIcon()}
-                <Text style={styles.greeting}>{getGreeting()}</Text>
-              </View>
-            </View>
-          </View>
-          <View style={styles.dateContainer}>
-            <Calendar size={16} color="#ffffff" />
-            <Text style={styles.date}>{formatDate()}</Text>
-          </View>
-        </View>
+        <Text style={styles.friendName}>{friendProfile.name}'s Prayers</Text>
+        <TouchableOpacity style={styles.datePickerButton} onPress={showDatePicker}>
+            <CalendarIcon size={16} color="#ffffff" />
+            <Text style={styles.date}>{displayDate}</Text>
+        </TouchableOpacity>
       </LinearGradient>
 
-      <ScrollView style={styles.content} showsVerticalScrollIndicator={false}>
-        <View style={styles.statsContainer}>
-          <Text style={styles.sectionTitle}>{friend.name}'s Progress Today</Text>
-          <View style={styles.progressRow}>
-            <ProgressCircle
-              percentage={stats.completed}
-              size={80}
-              strokeWidth={6}
-              color="#059669"
-              label="Completed"
-              value={`${friendPrayers.filter(p => p.status && p.status !== 'missed').length}/5`}
-            />
-            <ProgressCircle
-              percentage={stats.jamaah}
-              size={80}
-              strokeWidth={6}
-              color="#0d9488"
-              label="Jamaa'ah"
-              value={`${friendPrayers.filter(p => p.status === 'jamaah').length}/5`}
-            />
-            <ProgressCircle
-              percentage={stats.onTime}
-              size={80}
-              strokeWidth={6}
-              color="#f59e0b"
-              label="On Time"
-              value={`${friendPrayers.filter(p => p.status === 'jamaah' || p.status === 'alone').length}/5`}
-            />
-          </View>
-        </View>
-
-        <View style={styles.prayersContainer}>
-          <Text style={styles.sectionTitle}>Today's Prayers</Text>
-          {friendPrayers.map((prayer, index) => (
-            <View key={`${prayer.name}-${index}`} style={styles.prayerCardWrapper}>
-              <PrayerCard
-                prayer={prayer}
-                onStatusChange={() => {}} // Read-only for friend's prayers
-                readOnly={true}
-              />
-            </View>
-          ))}
-        </View>
-
-        <View style={styles.motivationContainer}>
-          <LinearGradient
-            colors={['#6366f1', '#8b5cf6']}
-            style={styles.motivationCard}
-          >
-            <Text style={styles.motivationText}>
-              "And whoever relies upon Allah - then He is sufficient for him. Indeed, Allah will accomplish His purpose." - Quran 65:3
-            </Text>
-          </LinearGradient>
-        </View>
+      <DateTimePickerModal
+        isVisible={isDatePickerVisible}
+        mode="date"
+        onConfirm={handleConfirmDate}
+        onCancel={hideDatePicker}
+        date={selectedDate}
+      />
+      
+      {loading ? (
+        <ActivityIndicator style={{ flex: 1, justifyContent: 'center' }} size="large" />
+      ) : (
+      <ScrollView style={styles.content}>
+        {friendPrayers.map((prayer, index) => (
+          <PrayerCard key={index} prayer={prayer} onStatusChange={() => {}} readOnly={true}/>
+        ))}
       </ScrollView>
+      )}
     </SafeAreaView>
   );
 }
 
 const styles = StyleSheet.create({
-    container: {
-        flex: 1,
-        backgroundColor: '#f9fafb',
-        paddingTop: Platform.OS === 'android' ? StatusBar.currentHeight : 0,
-      },
-      header: {
-        paddingHorizontal: 20,
-        paddingVertical: 24,
-        borderBottomLeftRadius: 24,
-        borderBottomRightRadius: 24,
-      },
-      backButton: {
-        width: 40,
-        height: 40,
-        borderRadius: 20,
-        backgroundColor: 'rgba(255, 255, 255, 0.2)',
-        justifyContent: 'center',
-        alignItems: 'center',
-        marginBottom: 16,
-      },
-      headerTitle: {
-        fontSize: 24,
-        fontFamily: 'Inter-Bold',
-        color: '#ffffff',
-        textAlign: 'center',
-      },
-      headerContent: {
-        gap: 8,
-      },
-      friendInfo: {
-        flexDirection: 'row',
-        alignItems: 'center',
-        gap: 12,
-      },
-      avatar: {
-        width: 48,
-        height: 48,
-        borderRadius: 24,
-        backgroundColor: 'rgba(255, 255, 255, 0.2)',
-        justifyContent: 'center',
-        alignItems: 'center',
-      },
-      friendName: {
-        fontSize: 24,
-        fontFamily: 'Inter-Bold',
-        color: '#ffffff',
-        marginBottom: 4,
-      },
-      greetingContainer: {
-        flexDirection: 'row',
-        alignItems: 'center',
-        gap: 6,
-      },
-      greeting: {
-        fontSize: 16,
-        fontFamily: 'Inter-Medium',
-        color: '#ffffff',
-        opacity: 0.9,
-      },
-      dateContainer: {
-        flexDirection: 'row',
-        alignItems: 'center',
-        gap: 6,
-      },
-      date: {
-        fontSize: 14,
-        fontFamily: 'Inter-Medium',
-        color: '#ffffff',
-        opacity: 0.9,
-      },
-      content: {
-        flex: 1,
-        paddingHorizontal: 20,
-      },
-      statsContainer: {
-        marginTop: 24,
-        marginBottom: 32,
-      },
-      sectionTitle: {
-        fontSize: 20,
-        fontFamily: 'Inter-Bold',
-        color: '#1f2937',
-        marginBottom: 16,
-      },
-      progressRow: {
-        flexDirection: 'row',
-        justifyContent: 'space-around',
-        paddingVertical: 16,
-      },
-      prayersContainer: {
-        marginBottom: 32,
-      },
-      prayerCardWrapper: {
-        opacity: 0.9,
-      },
-      motivationContainer: {
-        marginBottom: 32,
-      },
-      motivationCard: {
-        padding: 20,
-        borderRadius: 16,
-        shadowColor: '#000',
-        shadowOffset: { width: 0, height: 2 },
-        shadowOpacity: 0.1,
-        shadowRadius: 8,
-        elevation: 4,
-      },
-      motivationText: {
-        fontSize: 16,
-        fontFamily: 'Inter-Medium',
-        color: '#ffffff',
-        textAlign: 'center',
-        lineHeight: 24,
-      },
-      privateContainer: {
-        flex: 1,
-        justifyContent: 'center',
-        alignItems: 'center',
-        paddingHorizontal: 40,
-      },
-      privateCard: {
-        backgroundColor: '#ffffff',
-        borderRadius: 16,
-        padding: 24,
-        alignItems: 'center',
-        shadowColor: '#000',
-        shadowOffset: { width: 0, height: 2 },
-        shadowOpacity: 0.1,
-        shadowRadius: 8,
-        elevation: 4,
-      },
-      privateTitle: {
-        fontSize: 20,
-        fontFamily: 'Inter-Bold',
-        color: '#1f2937',
-        marginBottom: 12,
-        textAlign: 'center',
-      },
-      privateText: {
-        fontSize: 16,
-        fontFamily: 'Inter-Regular',
-        color: '#6b7280',
-        textAlign: 'center',
-        lineHeight: 24,
-      },
+    container: { flex: 1, backgroundColor: '#f9fafb', paddingTop: Platform.OS === 'android' ? StatusBar.currentHeight : 0, },
+    header: { padding: 20, paddingTop: 40, alignItems: 'center' },
+    backButton: { position: 'absolute', top: 40, left: 20, zIndex: 1, padding: 8 },
+    friendName: { color: '#fff', fontSize: 24, fontFamily: 'Inter-Bold' },
+    datePickerButton: { flexDirection: 'row', alignItems: 'center', gap: 8, marginTop: 12, backgroundColor: 'rgba(255,255,255,0.2)', paddingVertical: 8, paddingHorizontal: 16, borderRadius: 99 },
+    date: { color: '#fff', fontSize: 16, fontFamily: 'Inter-Medium' },
+    content: { padding: 16 },
 });

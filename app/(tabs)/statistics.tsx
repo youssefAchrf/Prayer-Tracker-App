@@ -1,410 +1,231 @@
-import React, { useState } from 'react';
-import {
-  View,
-  Text,
-  StyleSheet,
-  ScrollView,
-  SafeAreaView,
-  TouchableOpacity,
-  Platform,
-  StatusBar,
-  Dimensions,
-} from 'react-native';
-import { LineChart, BarChart } from 'react-native-chart-kit';
-import { ChevronLeft, ChevronRight, Calendar, TrendingUp } from 'lucide-react-native';
-import { ProgressCircle } from '@/components/ProgressCircle';
-import { usePrayer } from '@/contexts/PrayerContext';
+// import React, { useState, useEffect } from 'react';
+// import { View, Text, StyleSheet, ActivityIndicator, SafeAreaView, ScrollView, TouchableOpacity } from 'react-native';
+// import { usePrayer } from '@/contexts/PrayerContext';
+// import { MonthlyStats } from '@/types/prayer';
+// import { ChevronLeft, ChevronRight } from 'lucide-react-native';
+// // For the progress ring, you might need a library like 'react-native-progress'
+// // For now, we will simulate it with a simple view.
 
-const screenWidth = Dimensions.get('window').width;
+// export default function StatisticsScreen() {
+//   const { getMonthlyStats } = usePrayer();
+//   const [stats, setStats] = useState<MonthlyStats | null>(null);
+//   const [loading, setLoading] = useState(true);
+//   const [currentDate, setCurrentDate] = useState(new Date());
+
+//   useEffect(() => {
+//     const loadStats = async () => {
+//       setLoading(true);
+//       const year = currentDate.getFullYear();
+//       const month = currentDate.getMonth();
+//       const fetchedStats = await getMonthlyStats(year, month);
+//       setStats(fetchedStats);
+//       setLoading(false);
+//     };
+
+//     loadStats();
+//   }, [currentDate]);
+
+//   const changeMonth = (amount: number) => {
+//     setCurrentDate(prev => {
+//       const newDate = new Date(prev);
+//       newDate.setMonth(prev.getMonth() + amount);
+//       return newDate;
+//     });
+//   };
+
+//   const monthName = currentDate.toLocaleString('default', { month: 'long' });
+//   const yearName = currentDate.getFullYear();
+//   const completionPercentage = stats && stats.totalPrayers > 0 ? (stats.onTime + stats.late) / stats.totalPrayers : 0;
+
+//   if (loading) {
+//     return <ActivityIndicator style={styles.container} size="large" />;
+//   }
+
+//   return (
+//     <SafeAreaView style={styles.container}>
+//       <ScrollView>
+//         <View style={styles.header}>
+//           <TouchableOpacity onPress={() => changeMonth(-1)} style={styles.navButton}>
+//             <ChevronLeft size={24} color="#fff" />
+//           </TouchableOpacity>
+//           <View>
+//             <Text style={styles.headerTitle}>Monthly Progress</Text>
+//             <Text style={styles.headerSubtitle}>{monthName} {yearName}</Text>
+//           </View>
+//           <TouchableOpacity onPress={() => changeMonth(1)} style={styles.navButton}>
+//             <ChevronRight size={24} color="#fff" />
+//           </TouchableOpacity>
+//         </View>
+
+//         <View style={styles.mainStatContainer}>
+//           <View style={styles.progressCircle}>
+//             {/* This is where a real progress circle component would go */}
+//             <Text style={styles.progressText}>{`${Math.round(completionPercentage * 100)}%`}</Text>
+//             <Text style={styles.progressLabel}>Completed</Text>
+//           </View>
+//         </View>
+
+//         <View style={styles.detailedStats}>
+//           <StatBar label="In Jamaa'ah" value={stats?.jamaah || 0} total={stats?.totalPrayers || 1} color="#059669" />
+//           <StatBar label="On Time" value={stats?.onTime || 0} total={stats?.totalPrayers || 1} color="#34d399" />
+//           <StatBar label="Late" value={stats?.late || 0} total={stats?.totalPrayers || 1} color="#f59e0b" />
+//         </View>
+
+//       </ScrollView>
+//     </SafeAreaView>
+//   );
+// }
+
+// // A helper component to create the stat bars
+// const StatBar = ({ label, value, total, color }) => {
+//   const percentage = total > 0 ? (value / total) * 100 : 0;
+//   return (
+//     <View style={styles.statBarContainer}>
+//       <View style={styles.statBarLabels}>
+//         <Text style={styles.statBarLabel}>{label}</Text>
+//         <Text style={styles.statBarValue}>{value}</Text>
+//       </View>
+//       <View style={styles.statBarBackground}>
+//         <View style={[styles.statBarFill, { width: `${percentage}%`, backgroundColor: color }]} />
+//       </View>
+//     </View>
+//   );
+// };
+
+// const styles = StyleSheet.create({
+//     container: { flex: 1, backgroundColor: '#f9fafb' },
+//     header: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', padding: 20, backgroundColor: '#059669' },
+//     navButton: { padding: 8 },
+//     headerTitle: { fontSize: 24, fontFamily: 'Inter-Bold', color: '#ffffff', textAlign: 'center' },
+//     headerSubtitle: { fontSize: 16, fontFamily: 'Inter-Regular', color: '#a7f3d0', textAlign: 'center' },
+//     mainStatContainer: { padding: 30, alignItems: 'center', justifyContent: 'center' },
+//     progressCircle: { width: 180, height: 180, borderRadius: 90, backgroundColor: '#fff', elevation: 5, shadowColor: '#000', shadowOpacity: 0.1, shadowRadius: 10, alignItems: 'center', justifyContent: 'center', borderWidth: 10, borderColor: '#ecfdf5' },
+//     progressText: { fontSize: 48, fontFamily: 'Inter-Bold', color: '#059669' },
+//     progressLabel: { fontSize: 16, fontFamily: 'Inter-Medium', color: '#6b7280', marginTop: 4 },
+//     detailedStats: { paddingHorizontal: 20 },
+//     statBarContainer: { marginBottom: 20 },
+//     statBarLabels: { flexDirection: 'row', justifyContent: 'space-between', marginBottom: 8 },
+//     statBarLabel: { fontFamily: 'Inter-SemiBold', color: '#374151' },
+//     statBarValue: { fontFamily: 'Inter-Regular', color: '#6b7280' },
+//     statBarBackground: { height: 10, backgroundColor: '#e5e7eb', borderRadius: 5, overflow: 'hidden' },
+//     statBarFill: { height: '100%', borderRadius: 5 },
+// });
+import React, { useState, useCallback } from 'react';
+import { View, Text, StyleSheet, SafeAreaView, ActivityIndicator, TouchableOpacity, ScrollView, Platform, StatusBar } from 'react-native';
+import { usePrayer } from '@/contexts/PrayerContext';
+import { MonthlyStats } from '@/types/prayer';
+import { Users, User, Clock, XCircle } from 'lucide-react-native';
+import { useFocusEffect } from 'expo-router'; // <-- Import the special hook
 
 export default function StatisticsScreen() {
-  const { getMonthlyStats, getPrayerHistory } = usePrayer();
-  const [currentDate, setCurrentDate] = useState(new Date());
+  const { getAllTimeStats } = usePrayer();
+  const [stats, setStats] = useState<MonthlyStats | null>(null);
+  const [loading, setLoading] = useState(true);
 
-  const monthNames = [
-    'January', 'February', 'March', 'April', 'May', 'June',
-    'July', 'August', 'September', 'October', 'November', 'December'
-  ];
+  // --- THIS IS THE FIX ---
+  // useFocusEffect runs every time you navigate TO this screen.
+  useFocusEffect(
+    useCallback(() => {
+      const loadStats = async () => {
+        setLoading(true);
+        console.log("Fetching latest stats from server...");
+        const fetchedStats = await getAllTimeStats();
+        setStats(fetchedStats);
+        setLoading(false);
+      };
 
-  const currentMonth = currentDate.getMonth();
-  const currentYear = currentDate.getFullYear();
-  const monthlyStats = getMonthlyStats(currentYear, currentMonth);
+      loadStats();
 
-  const navigateMonth = (direction: 'prev' | 'next') => {
-    const newDate = new Date(currentDate);
-    if (direction === 'prev') {
-      newDate.setMonth(currentMonth - 1);
-    } else {
-      newDate.setMonth(currentMonth + 1);
-    }
-    setCurrentDate(newDate);
-  };
+      // Optional: return a cleanup function if needed
+      return () => {
+        // This can be used to cancel any pending actions if the user navigates away
+      };
+    }, []) // The dependency array for useCallback is usually empty here
+  );
 
-  const getWeeklyData = () => {
-    const history = getPrayerHistory(7);
-    const labels = history.reverse().map(day => {
-      const date = new Date(day.date);
-      return date.toLocaleDateString('en-US', { weekday: 'short' });
-    });
+  const totalPrayed = (stats?.onTime || 0) + (stats?.late || 0);
+  const totalPossible = stats?.totalPrayers || 0;
+  // Calculate missed prayers based on total possible prayers for the period logged
+  const missedPrayers = Math.max(0, totalPossible - totalPrayed);
 
-    const data = history.map(day => {
-      const completed = day.prayers.filter(p => p.status && p.status !== 'missed').length;
-      return completed;
-    });
-
-    return { labels, data };
-  };
-
-  const weeklyData = getWeeklyData();
-
-  const chartConfig = {
-    backgroundColor: '#ffffff',
-    backgroundGradientFrom: '#ffffff',
-    backgroundGradientTo: '#ffffff',
-    decimalPlaces: 0,
-    color: (opacity = 1) => `rgba(5, 150, 105, ${opacity})`,
-    labelColor: (opacity = 1) => `rgba(107, 114, 128, ${opacity})`,
-    style: {
-      borderRadius: 16,
-    },
-    propsForDots: {
-      r: '4',
-      strokeWidth: '2',
-      stroke: '#059669',
-    },
-  };
-
-  const barData = {
-    labels: ['Fajr', 'Dhuhr', 'Asr', 'Maghrib', 'Isha'],
-    datasets: [
-      {
-        data: [
-          Math.floor(Math.random() * 30) + 15, // Random data for demo
-          Math.floor(Math.random() * 30) + 15,
-          Math.floor(Math.random() * 30) + 15,
-          Math.floor(Math.random() * 30) + 15,
-          Math.floor(Math.random() * 30) + 15,
-        ],
-        colors: [
-          () => '#059669',
-          () => '#0d9488',
-          () => '#14b8a6',
-          () => '#2dd4bf',
-          () => '#5eead4',
-        ],
-      },
-    ],
-  };
-
-  const getCompletionRate = () => {
-    if (monthlyStats.totalPrayers === 0) return 0;
-    return Math.round(((monthlyStats.onTime + monthlyStats.jamaah) / monthlyStats.totalPrayers) * 100);
-  };
-
-  const getJamaahRate = () => {
-    if (monthlyStats.totalPrayers === 0) return 0;
-    return Math.round((monthlyStats.jamaah / monthlyStats.totalPrayers) * 100);
-  };
+  if (loading) {
+    return <ActivityIndicator style={styles.container} size="large" color="#059669" />;
+  }
 
   return (
     <SafeAreaView style={styles.container}>
-      <View style={styles.header}>
-        <Text style={styles.headerTitle}>Statistics</Text>
-        <TrendingUp size={24} color="#059669" />
-      </View>
-
-      <ScrollView style={styles.content} showsVerticalScrollIndicator={false}>
-        {/* Month Navigator */}
-        <View style={styles.monthNavigator}>
-          <TouchableOpacity
-            style={styles.navButton}
-            onPress={() => navigateMonth('prev')}
-          >
-            <ChevronLeft size={20} color="#6b7280" />
-          </TouchableOpacity>
-          
-          <View style={styles.monthDisplay}>
-            <Calendar size={16} color="#059669" />
-            <Text style={styles.monthText}>
-              {monthNames[currentMonth]} {currentYear}
-            </Text>
-          </View>
-          
-          <TouchableOpacity
-            style={styles.navButton}
-            onPress={() => navigateMonth('next')}
-          >
-            <ChevronRight size={20} color="#6b7280" />
-          </TouchableOpacity>
+       <ScrollView>
+        <View style={styles.header}>
+            <Text style={styles.headerTitle}>Statistics</Text>
+        </View>
+        <View style={styles.pillsContainer}>
+            <TouchableOpacity style={styles.pillActive}>
+            <Text style={styles.pillTextActive}>All time</Text>
+            </TouchableOpacity>
         </View>
 
-        {/* Monthly Overview */}
-        <View style={styles.overviewCard}>
-          <Text style={styles.cardTitle}>Monthly Overview</Text>
-          <View style={styles.progressGrid}>
-            <ProgressCircle
-              percentage={getCompletionRate()}
-              size={100}
-              strokeWidth={8}
-              color="#059669"
-              label="Completion Rate"
-              value={`${getCompletionRate()}%`}
+        <View style={styles.grid}>
+            <StatCard 
+            icon={<Users size={24} color="#10b981" />}
+            label="In Jamaa'ah"
+            value={stats?.jamaah || 0}
+            total={totalPrayed}
+            color="#10b981"
             />
-            <ProgressCircle
-              percentage={getJamaahRate()}
-              size={100}
-              strokeWidth={8}
-              color="#0d9488"
-              label="Jamaa'ah Rate"
-              value={`${getJamaahRate()}%`}
+            <StatCard 
+            icon={<User size={24} color="#3b82f6" />}
+            label="On Time"
+            value={stats?.onTime || 0}
+            total={totalPrayed}
+            color="#3b82f6"
             />
-          </View>
-          
-          <View style={styles.statsGrid}>
-            <View style={styles.statItem}>
-              <Text style={styles.statValue}>{monthlyStats.onTime}</Text>
-              <Text style={styles.statLabel}>On Time</Text>
-            </View>
-            <View style={styles.statItem}>
-              <Text style={styles.statValue}>{monthlyStats.jamaah}</Text>
-              <Text style={styles.statLabel}>Jamaa'ah</Text>
-            </View>
-            <View style={styles.statItem}>
-              <Text style={styles.statValue}>{monthlyStats.late}</Text>
-              <Text style={styles.statLabel}>Late</Text>
-            </View>
-            <View style={styles.statItem}>
-              <Text style={styles.statValue}>{monthlyStats.missed}</Text>
-              <Text style={styles.statLabel}>Missed</Text>
-            </View>
-          </View>
-        </View>
-
-        {/* Weekly Trend */}
-        <View style={styles.chartCard}>
-          <Text style={styles.cardTitle}>Weekly Trend</Text>
-          <LineChart
-            data={{
-              labels: weeklyData.labels,
-              datasets: [
-                {
-                  data: weeklyData.data,
-                },
-              ],
-            }}
-            width={screenWidth - 60}
-            height={200}
-            chartConfig={chartConfig}
-            bezier
-            style={styles.chart}
-          />
-        </View>
-
-        {/* Prayer Distribution */}
-        <View style={styles.chartCard}>
-          <Text style={styles.cardTitle}>Prayer Distribution (This Month)</Text>
-          <BarChart
-            data={barData}
-            width={screenWidth - 60}
-            height={200}
-            chartConfig={chartConfig}
-            style={styles.chart}
-            showValuesOnTopOfBars
-            withCustomBarColorFromData
-            flatColor
-          />
-        </View>
-
-        {/* Achievements */}
-        <View style={styles.achievementsCard}>
-          <Text style={styles.cardTitle}>Achievements</Text>
-          <View style={styles.achievementsList}>
-            <View style={styles.achievement}>
-              <View style={[styles.achievementIcon, { backgroundColor: '#059669' }]}>
-                <Text style={styles.achievementEmoji}>🎯</Text>
-              </View>
-              <View style={styles.achievementInfo}>
-                <Text style={styles.achievementTitle}>Perfect Week</Text>
-                <Text style={styles.achievementDesc}>Complete all prayers for 7 days</Text>
-              </View>
-            </View>
-            
-            <View style={styles.achievement}>
-              <View style={[styles.achievementIcon, { backgroundColor: '#0d9488' }]}>
-                <Text style={styles.achievementEmoji}>🕌</Text>
-              </View>
-              <View style={styles.achievementInfo}>
-                <Text style={styles.achievementTitle}>Jamaa'ah Champion</Text>
-                <Text style={styles.achievementDesc}>Pray 20 times in congregation</Text>
-              </View>
-            </View>
-            
-            <View style={styles.achievement}>
-              <View style={[styles.achievementIcon, { backgroundColor: '#f59e0b' }]}>
-                <Text style={styles.achievementEmoji}>⭐</Text>
-              </View>
-              <View style={styles.achievementInfo}>
-                <Text style={styles.achievementTitle}>Consistent</Text>
-                <Text style={styles.achievementDesc}>Pray for 30 consecutive days</Text>
-              </View>
-            </View>
-          </View>
+            <StatCard 
+            icon={<Clock size={24} color="#f59e0b" />}
+            label="Late"
+            value={stats?.late || 0}
+            total={totalPrayed}
+            color="#f59e0b"
+            />
+            <StatCard 
+            icon={<XCircle size={24} color="#ef4444" />}
+            label="Missed"
+            value={missedPrayers}
+            total={totalPossible > 0 ? totalPossible : 1} // Avoid division by zero
+            color="#ef4444"
+            />
         </View>
       </ScrollView>
     </SafeAreaView>
   );
 }
 
+// Helper component for the stat cards
+const StatCard = ({ icon, label, value, total, color }) => {
+  const percentage = total > 0 ? Math.round((value / total) * 100) : 0;
+  return (
+    <View style={styles.card}>
+      <View style={styles.cardHeader}>
+        <View style={[styles.iconContainer, { backgroundColor: `${color}1A` }]}>{icon}</View>
+      </View>
+      <Text style={styles.percentageText}>{percentage}%</Text>
+      <Text style={styles.valueText}>{value} times</Text>
+      <Text style={styles.labelText}>{label}</Text>
+    </View>
+  );
+};
+
 const styles = StyleSheet.create({
-  container: {
-    flex: 1,
-    backgroundColor: '#f9fafb',
-    paddingTop: Platform.OS === 'android' ? StatusBar.currentHeight : 0,
-  },
-  header: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    paddingHorizontal: 20,
-    paddingVertical: 20,
-    backgroundColor: '#ffffff',
-    borderBottomWidth: 1,
-    borderBottomColor: '#e5e7eb',
-  },
-  headerTitle: {
-    fontSize: 24,
-    fontFamily: 'Inter-Bold',
-    color: '#1f2937',
-  },
-  content: {
-    flex: 1,
-    paddingHorizontal: 20,
-  },
-  monthNavigator: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    marginTop: 20,
-    marginBottom: 20,
-  },
-  navButton: {
-    width: 40,
-    height: 40,
-    borderRadius: 20,
-    backgroundColor: '#ffffff',
-    justifyContent: 'center',
-    alignItems: 'center',
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 1 },
-    shadowOpacity: 0.05,
-    shadowRadius: 4,
-    elevation: 2,
-  },
-  monthDisplay: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 8,
-  },
-  monthText: {
-    fontSize: 18,
-    fontFamily: 'Inter-SemiBold',
-    color: '#1f2937',
-  },
-  overviewCard: {
-    backgroundColor: '#ffffff',
-    borderRadius: 16,
-    padding: 20,
-    marginBottom: 20,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.1,
-    shadowRadius: 8,
-    elevation: 4,
-  },
-  cardTitle: {
-    fontSize: 18,
-    fontFamily: 'Inter-SemiBold',
-    color: '#1f2937',
-    marginBottom: 16,
-  },
-  progressGrid: {
-    flexDirection: 'row',
-    justifyContent: 'space-around',
-    marginBottom: 24,
-  },
-  statsGrid: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-  },
-  statItem: {
-    alignItems: 'center',
-  },
-  statValue: {
-    fontSize: 24,
-    fontFamily: 'Inter-Bold',
-    color: '#059669',
-    marginBottom: 4,
-  },
-  statLabel: {
-    fontSize: 12,
-    fontFamily: 'Inter-Medium',
-    color: '#6b7280',
-  },
-  chartCard: {
-    backgroundColor: '#ffffff',
-    borderRadius: 16,
-    padding: 20,
-    marginBottom: 20,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.1,
-    shadowRadius: 8,
-    elevation: 4,
-  },
-  chart: {
-    borderRadius: 16,
-  },
-  achievementsCard: {
-    backgroundColor: '#ffffff',
-    borderRadius: 16,
-    padding: 20,
-    marginBottom: 32,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.1,
-    shadowRadius: 8,
-    elevation: 4,
-  },
-  achievementsList: {
-    gap: 16,
-  },
-  achievement: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 12,
-  },
-  achievementIcon: {
-    width: 40,
-    height: 40,
-    borderRadius: 20,
-    justifyContent: 'center',
-    alignItems: 'center',
-  },
-  achievementEmoji: {
-    fontSize: 20,
-  },
-  achievementInfo: {
-    flex: 1,
-  },
-  achievementTitle: {
-    fontSize: 16,
-    fontFamily: 'Inter-SemiBold',
-    color: '#1f2937',
-    marginBottom: 2,
-  },
-  achievementDesc: {
-    fontSize: 14,
-    fontFamily: 'Inter-Regular',
-    color: '#6b7280',
-  },
+  container: { flex: 1, backgroundColor: '#f9fafb', paddingTop: Platform.OS === 'android' ? StatusBar.currentHeight : 0, },
+  header: { padding: 20 },
+  headerTitle: { fontSize: 28, fontFamily: 'Inter-Bold', textAlign: 'center', color: '#1f2937' },
+  pillsContainer: { flexDirection: 'row', justifyContent: 'center', paddingHorizontal: 20, marginBottom: 20 },
+  pillActive: { backgroundColor: '#059669', paddingVertical: 8, paddingHorizontal: 20, borderRadius: 99 },
+  pillTextActive: { color: '#ffffff', fontFamily: 'Inter-SemiBold' },
+  grid: { flexDirection: 'row', flexWrap: 'wrap', justifyContent: 'center', paddingHorizontal: 10 },
+  card: { backgroundColor: '#ffffff', width: '45%', aspectRatio: 1, margin: '2.5%', borderRadius: 20, padding: 16, justifyContent: 'space-between', elevation: 4, shadowColor: '#000', shadowOpacity: 0.1, shadowRadius: 10 },
+  cardHeader: { alignSelf: 'flex-start' },
+  iconContainer: { padding: 8, borderRadius: 99 },
+  percentageText: { fontSize: 36, fontFamily: 'Inter-Bold', color: '#1f2937' },
+  valueText: { fontSize: 14, fontFamily: 'Inter-Regular', color: '#6b7280', marginTop: -5 },
+  labelText: { fontSize: 16, fontFamily: 'Inter-SemiBold', color: '#374151' },
 });

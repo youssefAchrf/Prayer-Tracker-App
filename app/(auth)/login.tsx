@@ -1,276 +1,5 @@
-// import React, { useState } from 'react';
-// import {
-//   View,
-//   Text,
-//   StyleSheet,
-//   TextInput,
-//   TouchableOpacity,
-//   SafeAreaView,
-//   Alert,
-//   Platform,
-//   StatusBar,
-// } from 'react-native';
-// import { Link, router } from 'expo-router';
-// import { Mail, Lock, Eye, EyeOff, CircleAlert as AlertCircle } from 'lucide-react-native';
-// import { useAuth } from '@/contexts/AuthContext';
 
-// export default function LoginScreen() {
-//   const { signIn, loading, isConfigured } = useAuth();
-//   const [email, setEmail] = useState('');
-//   const [password, setPassword] = useState('');
-//   const [showPassword, setShowPassword] = useState(false);
-//   const [isLoading, setIsLoading] = useState(false);
-
-//   const handleLogin = async () => {
-//     if (!isConfigured) {
-//       Alert.alert(
-//         'Setup Required', 
-//         'Supabase is not configured yet. Please set up your environment variables first.',
-//         [
-//           { text: 'Continue as Demo', onPress: () => router.replace('/(tabs)') },
-//           { text: 'OK' }
-//         ]
-//       );
-//       return;
-//     }
-
-//     if (!email.trim() || !password.trim()) {
-//       Alert.alert('Error', 'Please fill in all fields');
-//       return;
-//     }
-
-//     setIsLoading(true);
-//     const { error } = await signIn(email.trim(), password);
-    
-//     if (error) {
-//       Alert.alert('Login Failed', error.message);
-//     } else {
-//       router.replace('/(tabs)');
-//     }
-    
-//     setIsLoading(false);
-//   };
-
-//   const handleDemoLogin = () => {
-//     router.replace('/(tabs)');
-//   };
-
-//   return (
-//     <SafeAreaView style={styles.container}>
-//       <View style={styles.content}>
-//         <View style={styles.header}>
-//           <Text style={styles.title}>Welcome Back</Text>
-//           <Text style={styles.subtitle}>Sign in to continue your prayer journey</Text>
-//         </View>
-
-//         {!isConfigured && (
-//           <View style={styles.warningCard}>
-//             <AlertCircle size={20} color="#f59e0b" />
-//             <View style={styles.warningText}>
-//               <Text style={styles.warningTitle}>Demo Mode</Text>
-//               <Text style={styles.warningDesc}>
-//                 Supabase is not configured. You can continue in demo mode or set up your database.
-//               </Text>
-//             </View>
-//           </View>
-//         )}
-
-//         <View style={styles.form}>
-//           <View style={styles.inputContainer}>
-//             <Mail size={20} color="#6b7280" />
-//             <TextInput
-//               style={styles.input}
-//               placeholder="Email"
-//               value={email}
-//               onChangeText={setEmail}
-//               keyboardType="email-address"
-//               autoCapitalize="none"
-//               placeholderTextColor="#9ca3af"
-//               editable={isConfigured}
-//             />
-//           </View>
-
-//           <View style={styles.inputContainer}>
-//             <Lock size={20} color="#6b7280" />
-//             <TextInput
-//               style={styles.input}
-//               placeholder="Password"
-//               value={password}
-//               onChangeText={setPassword}
-//               secureTextEntry={!showPassword}
-//               placeholderTextColor="#9ca3af"
-//               editable={isConfigured}
-//             />
-//             <TouchableOpacity
-//               onPress={() => setShowPassword(!showPassword)}
-//               style={styles.eyeButton}
-//             >
-//               {showPassword ? (
-//                 <EyeOff size={20} color="#6b7280" />
-//               ) : (
-//                 <Eye size={20} color="#6b7280" />
-//               )}
-//             </TouchableOpacity>
-//           </View>
-
-//           {isConfigured ? (
-//             <TouchableOpacity
-//               style={[styles.loginButton, isLoading && styles.loginButtonDisabled]}
-//               onPress={handleLogin}
-//               disabled={isLoading || loading}
-//             >
-//               <Text style={styles.loginButtonText}>
-//                 {isLoading ? 'Signing In...' : 'Sign In'}
-//               </Text>
-//             </TouchableOpacity>
-//           ) : (
-//             <TouchableOpacity
-//               style={styles.demoButton}
-//               onPress={handleDemoLogin}
-//             >
-//               <Text style={styles.demoButtonText}>Continue in Demo Mode</Text>
-//             </TouchableOpacity>
-//           )}
-
-//           <View style={styles.footer}>
-//             <Text style={styles.footerText}>Don't have an account? </Text>
-//             <Link href="/(auth)/register" style={styles.link}>
-//               <Text style={styles.linkText}>Sign Up</Text>
-//             </Link>
-//           </View>
-//         </View>
-//       </View>
-//     </SafeAreaView>
-//   );
-// }
-
-// const styles = StyleSheet.create({
-//   container: {
-//     flex: 1,
-//     backgroundColor: '#f9fafb',
-//     paddingTop: Platform.OS === 'android' ? StatusBar.currentHeight : 0,
-//   },
-//   content: {
-//     flex: 1,
-//     paddingHorizontal: 24,
-//     justifyContent: 'center',
-//   },
-//   header: {
-//     alignItems: 'center',
-//     marginBottom: 40,
-//   },
-//   title: {
-//     fontSize: 32,
-//     fontFamily: 'Inter-Bold',
-//     color: '#1f2937',
-//     marginBottom: 8,
-//   },
-//   subtitle: {
-//     fontSize: 16,
-//     fontFamily: 'Inter-Regular',
-//     color: '#6b7280',
-//     textAlign: 'center',
-//   },
-//   warningCard: {
-//     flexDirection: 'row',
-//     alignItems: 'flex-start',
-//     backgroundColor: '#fffbeb',
-//     borderRadius: 12,
-//     padding: 16,
-//     marginBottom: 24,
-//     gap: 12,
-//     borderWidth: 1,
-//     borderColor: '#fed7aa',
-//   },
-//   warningText: {
-//     flex: 1,
-//   },
-//   warningTitle: {
-//     fontSize: 14,
-//     fontFamily: 'Inter-SemiBold',
-//     color: '#92400e',
-//     marginBottom: 4,
-//   },
-//   warningDesc: {
-//     fontSize: 12,
-//     fontFamily: 'Inter-Regular',
-//     color: '#92400e',
-//     lineHeight: 16,
-//   },
-//   form: {
-//     gap: 20,
-//   },
-//   inputContainer: {
-//     flexDirection: 'row',
-//     alignItems: 'center',
-//     backgroundColor: '#ffffff',
-//     borderRadius: 12,
-//     paddingHorizontal: 16,
-//     paddingVertical: 16,
-//     gap: 12,
-//     shadowColor: '#000',
-//     shadowOffset: { width: 0, height: 1 },
-//     shadowOpacity: 0.05,
-//     shadowRadius: 4,
-//     elevation: 2,
-//   },
-//   input: {
-//     flex: 1,
-//     fontSize: 16,
-//     fontFamily: 'Inter-Regular',
-//     color: '#1f2937',
-//   },
-//   eyeButton: {
-//     padding: 4,
-//   },
-//   loginButton: {
-//     backgroundColor: '#059669',
-//     borderRadius: 12,
-//     paddingVertical: 16,
-//     alignItems: 'center',
-//     marginTop: 8,
-//   },
-//   loginButtonDisabled: {
-//     backgroundColor: '#9ca3af',
-//   },
-//   loginButtonText: {
-//     fontSize: 16,
-//     fontFamily: 'Inter-SemiBold',
-//     color: '#ffffff',
-//   },
-//   demoButton: {
-//     backgroundColor: '#f59e0b',
-//     borderRadius: 12,
-//     paddingVertical: 16,
-//     alignItems: 'center',
-//     marginTop: 8,
-//   },
-//   demoButtonText: {
-//     fontSize: 16,
-//     fontFamily: 'Inter-SemiBold',
-//     color: '#ffffff',
-//   },
-//   footer: {
-//     flexDirection: 'row',
-//     justifyContent: 'center',
-//     alignItems: 'center',
-//     marginTop: 24,
-//   },
-//   footerText: {
-//     fontSize: 14,
-//     fontFamily: 'Inter-Regular',
-//     color: '#6b7280',
-//   },
-//   link: {
-//     marginLeft: 4,
-//   },
-//   linkText: {
-//     fontSize: 14,
-//     fontFamily: 'Inter-SemiBold',
-//     color: '#059669',
-//   },
-// });
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import {
   View,
   Text,
@@ -278,84 +7,158 @@ import {
   TextInput,
   TouchableOpacity,
   SafeAreaView,
-  Alert,
   Platform,
   StatusBar,
-  Image, // Import Image for the Google icon
+  ActivityIndicator,
+  Modal 
 } from 'react-native';
 import { Link, router } from 'expo-router';
-import { Mail, Lock } from 'lucide-react-native';
-import { supabase } from '@/lib/supabase'; // Import supabase client directly
+import { Mail, Lock, CheckCircle, AlertTriangle } from 'lucide-react-native'; 
 import { useAuth } from '@/contexts/AuthContext';
+
+// CustomAlertModal component - Modified to conditionally show the button
+const CustomAlertModal = ({ visible, title, message, onClose, showAcknowledgeButton = true }) => { // Added showAcknowledgeButton prop with default
+    if (!visible) return null;
+    const isSuccess = title === 'Success!';
+    const Icon = isSuccess ? CheckCircle : AlertTriangle;
+    const iconColor = isSuccess ? '#059669' : '#f59e0b';
+    
+    return (
+      <Modal visible={visible} transparent={true} animationType="fade" onRequestClose={onClose}>
+        <View style={styles.modalOverlay}>
+          <View style={styles.alertContainer}>
+            <Icon size={48} color={iconColor} />
+            <Text style={styles.alertTitle}>{title}</Text>
+            <Text style={styles.alertMessage}>{message}</Text>
+            {/* Conditionally render the Acknowledge button */}
+            {showAcknowledgeButton && (
+              <TouchableOpacity style={styles.alertButton} onPress={onClose}>
+                <Text style={styles.alertButtonText}>Acknowledge</Text>
+              </TouchableOpacity>
+            )}
+          </View>
+        </View>
+      </Modal>
+    );
+};
 
 export default function LoginScreen() {
   const { signIn } = useAuth();
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [isLoading, setIsLoading] = useState(false);
+  const [alertInfo, setAlertInfo] = useState({ visible: false, title: '', message: '' });
+
+  const [isEmailFocused, setIsEmailFocused] = useState(false);
+  const [isPasswordFocused, setIsPasswordFocused] = useState(false);
 
   const handleLogin = async () => {
-    if (!email.trim() || !password.trim()) {
-      Alert.alert('Error', 'Please fill in all fields');
+    const trimmedEmail = email.trim();
+    const trimmedPassword = password.trim();
+
+    if (!trimmedEmail || !trimmedPassword) {
+      setAlertInfo({ visible: true, title: 'Missing Information', message: 'Please enter both email and password.' });
       return;
     }
-    setIsLoading(true);
-    const { error } = await signIn(email.trim(), password);
-    if (error) {
-      Alert.alert('Login Failed', error.message);
-    } else {
-      router.replace('/(tabs)');
+
+    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+    if (!emailRegex.test(trimmedEmail)) {
+      setAlertInfo({ visible: true, title: 'Invalid Email Format', message: 'Please enter a valid email address.' });
+      return;
     }
+
+    setIsLoading(true);
+    const { error } = await signIn(trimmedEmail, trimmedPassword);
     setIsLoading(false);
+
+    if (error) {
+      let errorMessage = "An unexpected error occurred. Please try again.";
+      let errorTitle = "Login Failed";
+
+      if (error.message.includes("Invalid login credentials")) {
+          errorMessage = "Incorrect email or password. Please check your credentials.";
+          errorTitle = "Authentication Failed";
+      } else if (error.message.includes("Email not confirmed")) {
+          errorMessage = "Please confirm your email address before logging in. Check your inbox for the verification link.";
+          errorTitle = "Email Not Confirmed";
+      } else if (error.message.includes("Network request failed")) {
+          errorMessage = "Network error. Please check your internet connection.";
+          errorTitle = "Connection Failed";
+      }
+
+      setAlertInfo({ visible: true, title: errorTitle, message: errorMessage });
+    } else {
+      // On SUCCESS: Show the alert, then redirect after a delay
+      setAlertInfo({ visible: true, title: 'Success!', message: 'You have been logged in successfully.' });
+      
+      // Redirect instantly (after a short visual delay)
+      setTimeout(() => {
+        setAlertInfo({ visible: false, title: '', message: '' }); // Dismiss alert
+        router.replace('/(tabs)'); // Redirect to home page
+      }, 1500); // 1.5 second delay to let user read the success message
+    }
   };
 
-  // --- NEW FUNCTION FOR GOOGLE SIGN-IN ---
-  const handleGoogleSignIn = async () => {
-    const { error } = await supabase.auth.signInWithOAuth({
-      provider: 'google',
-    });
-    if (error) {
-      Alert.alert('Login Failed', error.message);
-    }
-    // Supabase handles the rest automatically
+  const handleAlertClose = () => {
+    // This function will primarily be called for error messages (when the Acknowledge button is present).
+    // Success redirection is handled by the setTimeout in handleLogin, so no redirection here for success.
+    setAlertInfo({ visible: false, title: '', message: '' });
   };
 
   return (
     <SafeAreaView style={styles.container}>
+      <CustomAlertModal
+        visible={alertInfo.visible}
+        title={alertInfo.title}
+        message={alertInfo.message}
+        onClose={handleAlertClose}
+        // Hide the Acknowledge button if it's a success message
+        showAcknowledgeButton={alertInfo.title !== 'Success!'} 
+      />
+
       <View style={styles.content}>
         <View style={styles.header}>
-          <Text style={styles.title}>Welcome Back</Text>
+          <Text style={styles.title}>Welcome Back!</Text>
           <Text style={styles.subtitle}>Sign in to continue your prayer journey</Text>
         </View>
 
         <View style={styles.form}>
-          <View style={styles.inputContainer}>
-            <Mail size={20} color="#9ca3af" />
-            <TextInput style={styles.input} placeholder="Email" value={email} onChangeText={setEmail} keyboardType="email-address" autoCapitalize="none" placeholderTextColor="#9ca3af"/>
+          <View style={[styles.inputContainer, isEmailFocused && styles.inputContainerFocused]}>
+            <Mail size={20} color={isEmailFocused ? '#059669' : '#6b7280'} />
+            <TextInput
+              style={styles.input}
+              placeholder="Email"
+              value={email}
+              onChangeText={setEmail}
+              keyboardType="email-address"
+              autoCapitalize="none"
+              onFocus={() => setIsEmailFocused(true)}
+              onBlur={() => setIsEmailFocused(false)}
+              placeholderTextColor="#9ca3af"
+            />
           </View>
-          <View style={styles.inputContainer}>
-            <Lock size={20} color="#6b7280" />
-            <TextInput style={styles.input} placeholder="Password" value={password} onChangeText={setPassword} secureTextEntry={true} placeholderTextColor="#9ca3af" />
+
+          <View style={[styles.inputContainer, isPasswordFocused && styles.inputContainerFocused]}>
+            <Lock size={20} color={isPasswordFocused ? '#059669' : '#6b7280'} />
+            <TextInput
+              style={styles.input}
+              placeholder="Password"
+              value={password}
+              onChangeText={setPassword}
+              secureTextEntry={true}
+              onFocus={() => setIsPasswordFocused(true)}
+              onBlur={() => setIsPasswordFocused(false)}
+              placeholderTextColor="#9ca3af"
+            />
           </View>
+
           <TouchableOpacity
             style={[styles.loginButton, isLoading && styles.loginButtonDisabled]}
             onPress={handleLogin}
             disabled={isLoading}
           >
-            <Text style={styles.loginButtonText}>{isLoading ? 'Signing In...' : 'Sign In with Email'}</Text>
+            {isLoading ? <ActivityIndicator color="#ffffff" /> : <Text style={styles.loginButtonText}>Sign In</Text>}
           </TouchableOpacity>
-
-          {/* --- NEW GOOGLE SIGN-IN BUTTON --- */}
-          <View style={styles.dividerContainer}>
-              <View style={styles.dividerLine} />
-              <Text style={styles.dividerText}>OR</Text>
-              <View style={styles.dividerLine} />
-          </View>
-          <TouchableOpacity style={styles.googleButton} onPress={handleGoogleSignIn}>
-            <Image source={{ uri: 'https://i.imgur.com/24C2t93.png' }} style={styles.googleIcon} />
-            <Text style={styles.googleButtonText}>Sign in with Google</Text>
-          </TouchableOpacity>
-
 
           <View style={styles.footer}>
             <Text style={styles.footerText}>Don't have an account? </Text>
@@ -369,26 +172,51 @@ export default function LoginScreen() {
   );
 }
 
-// --- ADDED NEW STYLES ---
 const styles = StyleSheet.create({
   container: { flex: 1, backgroundColor: '#f9fafb', paddingTop: Platform.OS === 'android' ? StatusBar.currentHeight : 0, },
-  content: { flex: 1, paddingHorizontal: 24, justifyContent: 'center' },
-  header: { alignItems: 'center', marginBottom: 40 },
-  title: { fontSize: 32, fontFamily: 'Inter-Bold', color: '#1f2937', marginBottom: 8 },
-  subtitle: { fontSize: 16, fontFamily: 'Inter-Regular', color: '#6b7280', textAlign: 'center' },
-  form: { gap: 16 },
-  inputContainer: { flexDirection: 'row', alignItems: 'center', backgroundColor: '#ffffff', borderWidth: 1, borderColor: '#e5e7eb', borderRadius: 12, paddingHorizontal: 16 },
-  input: { flex: 1, paddingVertical: 14, paddingHorizontal: 12, fontSize: 16, color: '#1f2937' },
-  loginButton: { backgroundColor: '#059669', borderRadius: 12, paddingVertical: 16, alignItems: 'center' },
-  loginButtonDisabled: { backgroundColor: '#9ca3af' },
-  loginButtonText: { fontSize: 16, fontFamily: 'Inter-SemiBold', color: '#ffffff' },
-  dividerContainer: { flexDirection: 'row', alignItems: 'center', gap: 16, marginVertical: 16 },
-  dividerLine: { flex: 1, height: 1, backgroundColor: '#e5e7eb' },
-  dividerText: { color: '#9ca3af', fontFamily: 'Inter-Medium' },
-  googleButton: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', backgroundColor: '#ffffff', borderWidth: 1, borderColor: '#e5e7eb', borderRadius: 12, paddingVertical: 16, gap: 12 },
-  googleIcon: { width: 24, height: 24 },
-  googleButtonText: { fontSize: 16, fontFamily: 'Inter-SemiBold', color: '#374151' },
-  footer: { flexDirection: 'row', justifyContent: 'center', alignItems: 'center', marginTop: 24 },
-  footerText: { fontSize: 14, color: '#6b7280' },
-  linkText: { fontSize: 14, fontFamily: 'Inter-SemiBold', color: '#059669', marginLeft: 4 },
+  content: { flex: 1, paddingHorizontal: 24, justifyContent: 'center', },
+  header: { alignItems: 'center', marginBottom: 40, },
+  title: { fontSize: 32, fontFamily: 'Inter-Bold', color: '#1f2937', marginBottom: 8, },
+  subtitle: { fontSize: 16, fontFamily: 'Inter-Regular', color: '#6b7280', textAlign: 'center', },
+  form: { gap: 16, },
+  
+  inputContainer: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: '#ffffff',
+    borderRadius: 12,
+    paddingHorizontal: 16,
+    gap: 12,
+    borderWidth: 2,
+    borderColor: '#e5e7eb',
+    // @ts-ignore
+    transitionDuration: '300ms', 
+  },
+  inputContainerFocused: {
+    borderColor: '#059669', 
+  },
+  input: {
+    flex: 1,
+    paddingVertical: 16,
+    fontSize: 16,
+    fontFamily: 'Inter-Regular',
+    color: '#1f2937',
+    // @ts-ignore
+    outlineStyle: 'none', 
+  },
+
+  loginButton: { backgroundColor: '#059669', borderRadius: 12, paddingVertical: 16, alignItems: 'center', marginTop: 8, },
+  loginButtonDisabled: { backgroundColor: '#9ca3af', },
+  loginButtonText: { fontSize: 16, fontFamily: 'Inter-SemiBold', color: '#ffffff', },
+  footer: { flexDirection: 'row', justifyContent: 'center', alignItems: 'center', marginTop: 24, },
+  footerText: { fontSize: 14, fontFamily: 'Inter-Regular', color: '#6b7280', },
+  linkText: { fontSize: 14, fontFamily: 'Inter-SemiBold', color: '#059669', marginLeft: 4, },
+
+  // Styles for the CustomAlertModal
+  modalOverlay: { flex: 1, backgroundColor: 'rgba(0,0,0,0.5)', justifyContent: 'center', alignItems: 'center', padding: 20 },
+  alertContainer: { width: '100%', maxWidth: 400, backgroundColor: 'white', borderRadius: 16, padding: 24, alignItems: 'center', elevation: 5, shadowColor: '#000', shadowOpacity: 0.1, shadowRadius: 5 },
+  alertTitle: { fontSize: 22, fontFamily: 'Inter-Bold', color: '#1f2937', marginTop: 16, marginBottom: 8 },
+  alertMessage: { fontSize: 16, fontFamily: 'Inter-Regular', color: '#6b7280', textAlign: 'center', marginBottom: 24 },
+  alertButton: { backgroundColor: '#059669', paddingVertical: 12, borderRadius: 12, alignSelf: 'stretch' },
+  alertButtonText: { color: 'white', fontSize: 16, fontFamily: 'Inter-SemiBold', textAlign: 'center' },
 });

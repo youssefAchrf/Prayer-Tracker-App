@@ -1,60 +1,115 @@
+// {
+//   "expo": {
+//     "name": "Prayer Tracker",
+//     "slug": "prayer-tracker-app",
+//     "version": "1.0.0",
+//     "orientation": "portrait",
+//     "icon": "./assets/images/icon.png",
+//     "scheme": "prayer-tracker",
+//     "userInterfaceStyle": "automatic",
+//     "newArchEnabled": true,
+//     "splash": {
+//       "image": "./assets/images/splash.png",
+//       "resizeMode": "contain",
+//       "backgroundColor": "#059669"
+//     },
+//     "assetBundlePatterns": [
+//       "**/*"
+//     ],
+//     "ios": {
+//       "supportsTablet": true,
+//       "bundleIdentifier": "com.yourcompany.prayertracker",
+//       "buildNumber": "1"
+//     },
+//     "android": {
+//       "adaptiveIcon": {
+//         "foregroundImage": "./assets/images/adaptive-icon.png",
+//         "backgroundColor": "#059669"
+//       },
+//       "package": "com.yourcompany.prayertracker",
+//       "versionCode": 1
+//     },
+//     "web": {
+//       "bundler": "metro",
+//       "output": "single",
+//       "favicon": "./assets/images/favicon.png",
+      
+//       "name": "Prayer Tracker",
+//       "shortName": "Prayers",
+//       "themeColor": "#059669",
+//       "backgroundColor": "#f9fafb",
+//       "display": "standalone",
+//       "scope": "/",
+//       "startUrl": "/"
+//     },
+//     "plugins": [
+//       "expo-router",
+//       "expo-font",
+//       "expo-web-browser"
+//     ],
+//     "experiments": {
+//       "typedRoutes": true
+//     },
+//     "extra": {
+//       "router": {},
+//       "eas": {
+//         "projectId": "7aa80fbb-ea23-492c-baa0-2f8b01c76edd"
+//       }
+//     }
+//   }
+// }
 {
   "expo": {
     "name": "Prayer Tracker",
-    "slug": "prayer-tracker-app",
+    "slug": "prayer-tracker",
     "version": "1.0.0",
     "orientation": "portrait",
-    "icon": "./assets/images/icon.png",
-    "scheme": "prayer-tracker",
+    "icon": "./assets/icon.png",
     "userInterfaceStyle": "automatic",
-    "newArchEnabled": true,
     "splash": {
-      "image": "./assets/images/splash.png",
+      "image": "./assets/splash.png",
       "resizeMode": "contain",
-      "backgroundColor": "#059669"
+      "backgroundColor": "#ffffff"
     },
     "assetBundlePatterns": [
       "**/*"
     ],
     "ios": {
-      "supportsTablet": true,
-      "bundleIdentifier": "com.yourcompany.prayertracker",
-      "buildNumber": "1"
+      "supportsTablet": true
     },
     "android": {
       "adaptiveIcon": {
-        "foregroundImage": "./assets/images/adaptive-icon.png",
-        "backgroundColor": "#059669"
-      },
-      "package": "com.yourcompany.prayertracker",
-      "versionCode": 1
+        "foregroundImage": "./assets/adaptive-icon.png",
+        "backgroundColor": "#ffffff"
+      }
     },
     "web": {
+      "favicon": "./assets/favicon.png",
       "bundler": "metro",
-      "output": "single",
-      "favicon": "./assets/images/favicon.png",
-      
-      "name": "Prayer Tracker",
-      "shortName": "Prayers",
+      "output": "static",
+      "display": "standalone",
       "themeColor": "#059669",
       "backgroundColor": "#f9fafb",
-      "display": "standalone",
-      "scope": "/",
-      "startUrl": "/"
+      "shortName": "Prayers",
+      "description": "A simple app to track your daily prayers and connect with friends.",
+      "icons": [
+        {
+          "src": "./assets/icon-192.png",
+          "sizes": "192x192",
+          "type": "image/png",
+          "purpose": "any maskable"
+        },
+        {
+          "src": "./assets/icon-512.png",
+          "sizes": "512x512",
+          "type": "image/png",
+          "purpose": "any maskable"
+        }
+      ]
     },
     "plugins": [
-      "expo-router",
-      "expo-font",
-      "expo-web-browser"
+      "expo-router"
     ],
-    "experiments": {
-      "typedRoutes": true
-    },
-    "extra": {
-      "router": {},
-      "eas": {
-        "projectId": "7aa80fbb-ea23-492c-baa0-2f8b01c76edd"
-      }
-    }
+    "scheme": "prayer-tracker"
   }
 }

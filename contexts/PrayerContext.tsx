@@ -1,147 +1,8 @@
 
-// import React, { createContext, useContext, useState } from 'react';
-// import { supabase } from '@/lib/supabase';
-// import { useAuth } from '@/contexts/AuthContext';
-// import { Prayer, PrayerStatus, MonthlyStats } from '@/types/prayer';
-// import { Alert } from 'react-native';
-
-// interface PrayerContextType {
-//   displayedPrayers: Prayer[];
-//   updatePrayerStatus: (prayerName: string, status: PrayerStatus, date: Date) => void;
-//   loadPrayersForDate: (date: Date) => Promise<void>;
-//   getAllTimeStats: () => Promise<MonthlyStats>;
-//   loading: boolean;
-// }
-
-// const PrayerContext = createContext<PrayerContextType | undefined>(undefined);
-
-// const DEFAULT_PRAYERS: Prayer[] = [
-//     { name: 'Fajr', arabicName: 'الفجر', time: '05:30' },
-//     { name: 'Dhuhr', arabicName: 'الظهر', time: '12:30' },
-//     { name: 'Asr', arabicName: 'العصر', time: '15:45' },
-//     { name: 'Maghrib', arabicName: 'المغرب', time: '18:15' },
-//     { name: 'Isha', arabicName: 'العشاء', time: '19:45' },
-// ];
-
-// const getLocalYYYYMMDD = (date: Date): string => {
-//     const year = date.getFullYear();
-//     const month = String(date.getMonth() + 1).padStart(2, '0');
-//     const day = String(date.getDate()).padStart(2, '0');
-//     return `${year}-${month}-${day}`;
-// };
-
-// export function PrayerProvider({ children }: { children: React.ReactNode }) {
-//   const { user } = useAuth();
-//   const [displayedPrayers, setDisplayedPrayers] = useState<Prayer[]>(DEFAULT_PRAYERS);
-//   const [loading, setLoading] = useState(true);
-
-//   const loadPrayersForDate = async (date: Date) => {
-//     if (!user) {
-//         setDisplayedPrayers(DEFAULT_PRAYERS);
-//         setLoading(false);
-//         return;
-//     };
-//     setLoading(true);
-//     const dateString = getLocalYYYYMMDD(date);
-
-//     const { data, error } = await supabase
-//       .from('prayers')
-//       .select('prayer_name, status')
-//       .eq('user_id', user.id)
-//       .eq('prayer_date', dateString);
-
-//     if (error) {
-//       console.error("Error fetching prayers:", error);
-//     } else {
-//       const updatedPrayers = DEFAULT_PRAYERS.map(defaultPrayer => {
-//         const fetchedPrayer = data?.find(p => p.prayer_name === defaultPrayer.name);
-//         return { ...defaultPrayer, status: fetchedPrayer?.status || null };
-//       });
-//       setDisplayedPrayers(updatedPrayers);
-//     }
-//     setLoading(false);
-//   };
-
-//   const updatePrayerStatus = async (prayerName: string, status: PrayerStatus, date: Date) => {
-//     if (!user) return;
-//     const dateString = getLocalYYYYMMDD(date);
-//     let newStatus: PrayerStatus | null = status;
-
-//     const currentPrayer = displayedPrayers.find(p => p.name === prayerName);
-//     if (currentPrayer && currentPrayer.status === status) {
-//       newStatus = null; // Toggle off logic
-//     }
-
-//     const updatedPrayers = displayedPrayers.map(p =>
-//       p.name === prayerName ? { ...p, status: newStatus } : p
-//     );
-//     setDisplayedPrayers(updatedPrayers);
-    
-//     const { error } = await supabase.from('prayers').upsert({
-//       user_id: user.id,
-//       prayer_date: dateString,
-//       prayer_name: prayerName,
-//       status: newStatus,
-//     }, { onConflict: 'user_id, prayer_date, prayer_name' });
-
-//     if (error) {
-//       Alert.alert("Error", "Could not save your prayer.");
-//       loadPrayersForDate(date);
-//     }
-//   };
-
-//   const getAllTimeStats = async (): Promise<MonthlyStats> => {
-//     if (!user) return { totalPrayers: 0, onTime: 0, jamaah: 0, late: 0 };
-
-//     const { data, error, count } = await supabase
-//       .from('prayers')
-//       .select('status', { count: 'exact' })
-//       .eq('user_id', user.id)
-//       .not('status', 'is', null);
-    
-//     if (error) {
-//       console.error("Error fetching all-time stats:", error);
-//       return { totalPrayers: 0, onTime: 0, jamaah: 0, late: 0 };
-//     }
-
-//     const stats: MonthlyStats = { totalPrayers: count || 0, onTime: 0, jamaah: 0, late: 0 };
-//     data?.forEach(prayer => {
-//       if (prayer.status === 'jamaah') {
-//         stats.jamaah++;
-//         stats.onTime++;
-//       } else if (prayer.status === 'alone') {
-//         stats.onTime++;
-//       } else if (prayer.status === 'late') {
-//         stats.late++;
-//       }
-//     });
-
-//     return stats;
-//   };
-
-//   return (
-//     <PrayerContext.Provider value={{
-//       displayedPrayers,
-//       updatePrayerStatus,
-//       loadPrayersForDate,
-//       getAllTimeStats,
-//       loading,
-//     }}>
-//       {children}
-//     </PrayerContext.Provider>
-//   );
-// }
-
-// export function usePrayer() {
-//   const context = useContext(PrayerContext);
-//   if (context === undefined) {
-//     throw new Error('usePrayer must be used within a PrayerProvider');
-//   }
-//   return context;
-// }
-import React, { createContext, useContext, useState } from 'react';
+import React, { createContext, useContext, useState, useEffect } from 'react';
 import { supabase } from '@/lib/supabase';
 import { useAuth } from '@/contexts/AuthContext';
+import { useSupabaseUser } from '@/contexts/SupabaseUserContext';
 import { Prayer, PrayerStatus, MonthlyStats } from '@/types/prayer';
 import { Alert } from 'react-native';
 
@@ -149,13 +10,14 @@ interface PrayerContextType {
   displayedPrayers: Prayer[];
   updatePrayerStatus: (prayerName: string, status: PrayerStatus, date: Date) => void;
   loadPrayersForDate: (date: Date) => Promise<void>;
-  getAllTimeStats: () => Promise<MonthlyStats>;
+  // --- FIX #1: ADD THE MISSING FUNCTION TO THE INTERFACE ---
+  getPrayerDataForMonth: (year: number, month: number) => Promise<Array<{ prayer_date: string; status: PrayerStatus }>>;
+  getPrayerDataForDateRange: (startDate: string, endDate: string) => Promise<Array<{ prayer_date: string; prayer_name: string; status: PrayerStatus }>>;
   loading: boolean;
 }
 
 const PrayerContext = createContext<PrayerContextType | undefined>(undefined);
 
-// The default prayers no longer need hardcoded times.
 const DEFAULT_PRAYERS: Omit<Prayer, 'time'>[] = [
     { name: 'Fajr', arabicName: 'الفجر' },
     { name: 'Dhuhr', arabicName: 'الظهر' },
@@ -171,75 +33,63 @@ const getLocalYYYYMMDD = (date: Date): string => {
     return `${year}-${month}-${day}`;
 };
 
+const formatTo12Hour = (time24: string): string => {
+    if (!time24) return '--:--';
+    const [hours, minutes] = time24.split(':');
+    const h = parseInt(hours, 10);
+    const ampm = h >= 12 ? 'PM' : 'AM';
+    const hour12 = h % 12 || 12;
+    return `${hour12}:${minutes} ${ampm}`;
+};
+
 export function PrayerProvider({ children }: { children: React.ReactNode }) {
   const { user } = useAuth();
+  const { profile } = useSupabaseUser();
   const [displayedPrayers, setDisplayedPrayers] = useState<Prayer[]>([]);
   const [loading, setLoading] = useState(true);
+  const [currentDate, setCurrentDate] = useState(new Date());
 
-  // --- NEW FUNCTION TO FETCH PRAYER TIMES ---
+  useEffect(() => {
+    if (profile) {
+      loadPrayersForDate(currentDate);
+    }
+  }, [profile?.timezone_city, profile?.timezone_country]);
+
   const fetchPrayerTimes = async (date: Date) => {
     const dateString = getLocalYYYYMMDD(date);
+    const city = profile?.timezone_city || 'Cairo';
+    const country = profile?.timezone_country || 'Egypt';
+
     try {
-      // API call to get timings for Cairo, Egypt using the Egyptian method (5)
-      const response = await fetch(`https://api.aladhan.com/v1/timingsByCity/${dateString}?city=Cairo&country=Egypt&method=5`);
+      const response = await fetch(`https://api.aladhan.com/v1/timingsByCity/${dateString}?city=${city}&country=${country}&method=5`);
       const data = await response.json();
-      
-      if (data.code === 200) {
-        // Return a simple object with just the times we need
-        const times = data.data.timings;
-        return {
-          Fajr: times.Fajr,
-          Dhuhr: times.Dhuhr,
-          Asr: times.Asr,
-          Maghrib: times.Maghrib,
-          Isha: times.Isha,
-        };
-      }
+      if (data.code === 200) return data.data.timings;
     } catch (error) {
       console.error("Failed to fetch prayer times:", error);
     }
-    return null; // Return null if fetching fails
+    return null;
   };
 
   const loadPrayersForDate = async (date: Date) => {
-    if (!user) {
-        setLoading(false);
-        return;
-    };
+    setCurrentDate(date);
+    if (!user) { setLoading(false); return; };
     setLoading(true);
 
-    // 1. Fetch the correct prayer times for the selected date
     const prayerTimes = await fetchPrayerTimes(date);
-    
-    // 2. Fetch the user's prayer statuses for that date from Supabase
     const dateString = getLocalYYYYMMDD(date);
-    const { data: prayerStatuses, error } = await supabase
-      .from('prayers')
-      .select('prayer_name, status')
-      .eq('user_id', user.id)
-      .eq('prayer_date', dateString);
+    const { data: prayerStatuses, error } = await supabase.from('prayers').select('prayer_name, status').eq('user_id', user.id).eq('prayer_date', dateString);
+    if (error) console.error("Error fetching prayer statuses:", error);
 
-    if (error) {
-      console.error("Error fetching prayer statuses:", error);
-    }
-
-    // 3. Combine the times and statuses
-    const updatedPrayers = DEFAULT_PRAYERS.map(prayerInfo => {
-      const statusData = prayerStatuses?.find(p => p.prayer_name === prayerInfo.name);
-      return {
+    const updatedPrayers = DEFAULT_PRAYERS.map(prayerInfo => ({
         ...prayerInfo,
-        time: prayerTimes?.[prayerInfo.name] || '--:--', // Use fetched time or a placeholder
-        status: statusData?.status || null,
-      };
-    });
+        time: prayerTimes ? formatTo12Hour(prayerTimes[prayerInfo.name]) : '--:--',
+        status: prayerStatuses?.find(p => p.prayer_name === prayerInfo.name)?.status || null,
+    }));
 
     setDisplayedPrayers(updatedPrayers);
     setLoading(false);
   };
   
-  // The rest of your functions (updatePrayerStatus, getAllTimeStats) remain the same
-  // ... (paste your existing updatePrayerStatus and getAllTimeStats functions here) ...
-
   const updatePrayerStatus = async (prayerName: string, status: PrayerStatus, date: Date) => {
     if (!user) return;
     const dateString = getLocalYYYYMMDD(date);
@@ -247,7 +97,7 @@ export function PrayerProvider({ children }: { children: React.ReactNode }) {
 
     const currentPrayer = displayedPrayers.find(p => p.name === prayerName);
     if (currentPrayer && currentPrayer.status === status) {
-      newStatus = null; // Toggle off logic
+      newStatus = null;
     }
 
     const updatedPrayers = displayedPrayers.map(p =>
@@ -268,37 +118,36 @@ export function PrayerProvider({ children }: { children: React.ReactNode }) {
     }
   };
 
-  const getAllTimeStats = async (): Promise<MonthlyStats> => {
-      if (!user) return { totalPrayers: 0, onTime: 0, jamaah: 0, late: 0 };
+  const getPrayerDataForMonth = async (year: number, month: number): Promise<Array<{ prayer_date: string; status: PrayerStatus }>> => {
+    if (!user) return [];
+    const startDate = `${year}-${String(month + 1).padStart(2, '0')}-01`;
+    const nextMonth = new Date(year, month + 1, 1);
+    const endDate = `${nextMonth.getFullYear()}-${String(nextMonth.getMonth() + 1).padStart(2, '0')}-01`;
+    const { data, error } = await supabase.from('prayers').select('prayer_date, status').eq('user_id', user.id).gte('prayer_date', startDate).lt('prayer_date', endDate).not('status', 'is', null);
+    if (error) { console.error("Error fetching monthly prayer data:", error); return []; }
+    return data || [];
+  };
 
-      const { data, error, count } = await supabase
-        .from('prayers')
-        .select('status', { count: 'exact' })
-        .eq('user_id', user.id)
-        .not('status', 'is', null);
-      
-      if (error) {
-        console.error("Error fetching all-time stats:", error);
-        return { totalPrayers: 0, onTime: 0, jamaah: 0, late: 0 };
-      }
-      const stats: MonthlyStats = { totalPrayers: count || 0, onTime: 0, jamaah: 0, late: 0 };
-      data?.forEach(prayer => {
-        if (prayer.status === 'jamaah') { stats.jamaah++; stats.onTime++; }
-        else if (prayer.status === 'alone') { stats.onTime++; }
-        else if (prayer.status === 'late') { stats.late++; }
-      });
-      return stats;
-    };
-
+  const getPrayerDataForDateRange = async (startDate: string, endDate: string) => {
+    if (!user) return [];
+    const { data, error } = await supabase
+      .from('prayers')
+      .select('prayer_date, prayer_name, status')
+      .eq('user_id', user.id)
+      .gte('prayer_date', startDate)
+      .lte('prayer_date', endDate)
+      .not('status', 'is', null)
+      .order('prayer_date', { ascending: false });
+    if (error) {
+      console.error("Error fetching prayer data for range:", error);
+      return [];
+    }
+    return data || [];
+  };
 
   return (
-    <PrayerContext.Provider value={{
-      displayedPrayers,
-      updatePrayerStatus,
-      loadPrayersForDate,
-      getAllTimeStats,
-      loading,
-    }}>
+    // --- FIX #2: ADD THE MISSING FUNCTION TO THE VALUE OBJECT ---
+    <PrayerContext.Provider value={{ displayedPrayers, updatePrayerStatus, loadPrayersForDate, getPrayerDataForMonth, getPrayerDataForDateRange, loading }}>
       {children}
     </PrayerContext.Provider>
   );
@@ -306,8 +155,6 @@ export function PrayerProvider({ children }: { children: React.ReactNode }) {
 
 export function usePrayer() {
   const context = useContext(PrayerContext);
-  if (context === undefined) {
-    throw new Error('usePrayer must be used within a PrayerProvider');
-  }
+  if (context === undefined) throw new Error('usePrayer must be used within a PrayerProvider');
   return context;
 }

@@ -388,6 +388,72 @@ export function SupabaseUserProvider({ children }: { children: React.ReactNode }
     };
   }, [user]);
 
+  // --- PERFORMANCE FIX ---
+  // This effect now runs ONLY when the friends list changes.
+  // It fetches secondary data (streaks, daily prayers) in the background without blocking the UI.
+  useEffect(() => {
+    if (!user || friends.length === 0) {
+        setSharedStreaks(new Map());
+        setFriendsPersonalStreaks(new Map());
+        setFriendsDailyPrayers(new Map());
+        return;
+    };
+
+    const fetchSecondaryFriendData = async () => {
+        const acceptedFriendIds = friends
+            .filter(f => f.status === 'accepted')
+            .map(f => (f.requester_id === user.id ? f.addressee_id : f.requester_id));
+
+        if (acceptedFriendIds.length === 0) {
+            setSharedStreaks(new Map());
+            setFriendsPersonalStreaks(new Map());
+            setFriendsDailyPrayers(new Map());
+            return;
+        }
+
+        const today = getTodayDateString();
+        
+        const sharedStreaksPromise = supabase.rpc('get_all_shared_streaks', { p_user_id: user.id });
+        const dailyPrayersPromise = supabase.from('prayers').select('user_id, prayer_name, status').in('user_id', acceptedFriendIds).eq('prayer_date', today);
+        const personalStreaksPromises = acceptedFriendIds.map(id => 
+            supabase.rpc('get_personal_perfect_streak', { p_user_id: id }).then(({ data, error }) => ({ id, data, error }))
+        );
+
+        const [sharedStreaksResult, dailyPrayersResult, personalStreaksResults] = await Promise.all([
+            sharedStreaksPromise,
+            dailyPrayersPromise,
+            Promise.all(personalStreaksPromises)
+        ]);
+
+        if (!sharedStreaksResult.error) {
+            const newStreaksMap = new Map<string, number>();
+            sharedStreaksResult.data?.forEach(item => newStreaksMap.set(item.friendship_id, item.streak));
+            setSharedStreaks(newStreaksMap);
+        }
+
+        if (!dailyPrayersResult.error) {
+            const prayersMap = new Map<string, DailyPrayer[]>();
+            dailyPrayersResult.data.forEach(prayer => {
+                const existing = prayersMap.get(prayer.user_id) || [];
+                prayersMap.set(prayer.user_id, [...existing, { prayer_name: prayer.prayer_name, status: prayer.status }]);
+            });
+            setFriendsDailyPrayers(prayersMap);
+        }
+
+        const newFriendsPersonalStreaks = new Map<string, number>();
+        personalStreaksResults.forEach(result => {
+            if (!result.error) {
+                newFriendsPersonalStreaks.set(result.id, result.data || 0);
+            }
+        });
+        setFriendsPersonalStreaks(newFriendsPersonalStreaks);
+    };
+
+    fetchSecondaryFriendData();
+
+  }, [friends, user]);
+
+
   const fetchData = async () => {
     if (!user) return;
     setLoading(true);
@@ -425,70 +491,11 @@ export function SupabaseUserProvider({ children }: { children: React.ReactNode }
     else setPersonalStreak(data || 0);
   };
 
-  // --- FIX: This function is now more robust and efficient ---
   const loadFriendsAndStreaks = async () => {
     if (!user) return;
-    
     const { data: friendships, error: friendsError } = await supabase.from('friendships').select(`*, requester:requester_id(*), addressee:addressee_id(*)`).or(`requester_id.eq.${user.id},addressee_id.eq.${user.id}`);
-    if (friendsError) {
-        console.error('Error loading friends:', friendsError);
-        return;
-    }
-    setFriends(friendships || []);
-
-    if (!friendships || friendships.length === 0) {
-        setSharedStreaks(new Map());
-        setFriendsPersonalStreaks(new Map());
-        setFriendsDailyPrayers(new Map());
-        return;
-    }
-
-    const friendIds = friendships
-        .filter(f => f.status === 'accepted')
-        .map(f => (f.requester_id === user.id ? f.addressee_id : f.requester_id));
-
-    if (friendIds.length === 0) {
-        setSharedStreaks(new Map());
-        setFriendsPersonalStreaks(new Map());
-        setFriendsDailyPrayers(new Map());
-        return;
-    }
-
-    const today = getTodayDateString();
-    const sharedStreaksPromise = supabase.rpc('get_all_shared_streaks', { p_user_id: user.id });
-    const dailyPrayersPromise = supabase.from('prayers').select('user_id, prayer_name, status').in('user_id', friendIds).eq('prayer_date', today);
-    const personalStreaksPromises = friendIds.map(id => 
-        supabase.rpc('get_personal_perfect_streak', { p_user_id: id }).then(({ data, error }) => ({ id, data, error }))
-    );
-
-    const [sharedStreaksResult, dailyPrayersResult, personalStreaksResults] = await Promise.all([
-        sharedStreaksPromise,
-        dailyPrayersPromise,
-        Promise.all(personalStreaksPromises)
-    ]);
-
-    if (!sharedStreaksResult.error) {
-        const newStreaksMap = new Map<string, number>();
-        sharedStreaksResult.data?.forEach(item => newStreaksMap.set(item.friendship_id, item.streak));
-        setSharedStreaks(newStreaksMap);
-    }
-
-    if (!dailyPrayersResult.error) {
-        const prayersMap = new Map<string, DailyPrayer[]>();
-        dailyPrayersResult.data.forEach(prayer => {
-            const existing = prayersMap.get(prayer.user_id) || [];
-            prayersMap.set(prayer.user_id, [...existing, { prayer_name: prayer.prayer_name, status: prayer.status }]);
-        });
-        setFriendsDailyPrayers(prayersMap);
-    }
-
-    const newFriendsPersonalStreaks = new Map<string, number>();
-    personalStreaksResults.forEach(result => {
-        if (!result.error) {
-            newFriendsPersonalStreaks.set(result.id, result.data || 0);
-        }
-    });
-    setFriendsPersonalStreaks(newFriendsPersonalStreaks);
+    if (friendsError) console.error('Error loading friends:', friendsError);
+    else setFriends(friendships || []);
   };
 
   const loadLeaderboardData = async () => {

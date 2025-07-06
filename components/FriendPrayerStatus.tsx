@@ -1,18 +1,18 @@
 import React from 'react';
 import { View, StyleSheet } from 'react-native';
-import { Sun, Moon, Sunrise, Sunset } from 'lucide-react-native';
+import { Sun, Moon, Sunrise, Sunset, CloudSun } from 'lucide-react-native'; // <-- Import the new CloudSun icon
 
 // Define the prayer order and their corresponding icons
 const PRAYER_ORDER = [
   { name: 'Fajr', Icon: Sunrise },
   { name: 'Dhuhr', Icon: Sun },
-  { name: 'Asr', Icon: Sun },
+  { name: 'Asr', Icon: CloudSun }, // <-- Changed the icon for Asr
   { name: 'Maghrib', Icon: Sunset },
   { name: 'Isha', Icon: Moon },
 ];
 
 // Define the colors for each prayer status
-const STATUS_COLORS = {
+const STATUS_COLORS: { [key: string]: string } = {
   jamaah: '#22c55e', // Green
   alone: '#3b82f6',   // Blue
   late: '#f59e0b',    // Amber/Yellow

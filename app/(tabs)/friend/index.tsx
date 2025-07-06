@@ -287,11 +287,11 @@
 
 import React, { useState } from 'react';
 import { View, Text, StyleSheet, ScrollView, SafeAreaView, TouchableOpacity, TextInput, Platform, StatusBar, ActivityIndicator, Modal, LayoutAnimation, UIManager } from 'react-native';
-import { router } from 'expo-router';
+import { router } from 'expo-router'; 
 import { Plus, User as UserIcon, Mail, Check, X, Eye, EyeOff, ChevronRight, Trash2, MoreVertical, AlertTriangle, Flame } from 'lucide-react-native';
 import { useSupabaseUser } from '@/contexts/SupabaseUserContext';
 import { StreakBadge } from '@/components/StreakBadge';
-import { FriendPrayerStatus } from '@/components/FriendPrayerStatus'; // <-- Import the new component
+import { FriendPrayerStatus } from '@/components/FriendPrayerStatus'; 
 
 if (Platform.OS === 'android' && UIManager.setLayoutAnimationEnabledExperimental) {
   UIManager.setLayoutAnimationEnabledExperimental(true);
@@ -306,7 +306,7 @@ const FriendActionSheet = ({ visible, onClose, onSelect, friend }) => {
           <View style={styles.actionSheetContainer}>
             <View style={styles.actionSheetHeader}><Text style={styles.actionSheetTitle}>{friend.profile?.name}</Text><Text style={styles.actionSheetSubtitle}>{friend.profile?.email}</Text></View>
             <TouchableOpacity style={styles.actionButton} onPress={() => handleAction('view')}><ChevronRight size={20} color="#374151" /><Text style={styles.actionButtonText}>View Profile</Text></TouchableOpacity>
-            <TouchableOpacity style={styles.actionButton} onPress={() => handleAction('toggle_access')}>{friend.can_view_prayers ? <EyeOff size={20} color="#374151" /> : <Eye size={20} color="#374151" />}<Text style={styles.actionButtonText}>{friend.can_view_prayers ? 'Disable Prayer Access' : 'Enable Prayer Access'}</Text></TouchableOpacity>
+            
             <TouchableOpacity style={[styles.actionButton, { borderBottomWidth: 0 }]} onPress={() => handleAction('remove')}><Trash2 size={20} color="#ef4444" /><Text style={styles.actionButtonText}>Remove Friend</Text></TouchableOpacity>
             <TouchableOpacity style={styles.cancelSheetButton} onPress={onClose}><Text style={styles.cancelButtonText}>Cancel</Text></TouchableOpacity>
           </View>

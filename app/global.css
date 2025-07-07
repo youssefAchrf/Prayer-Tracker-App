@@ -1,0 +1,23 @@
+/*
+  This file is for global web-only styles.
+*/
+
+/* This prevents mobile browsers from auto-adjusting font sizes */
+html, body {
+  text-size-adjust: 100%;
+  -webkit-text-size-adjust: 100%;
+  -moz-text-size-adjust: 100%;
+}
+
+/* This is the key fix. We are telling all input fields that their font size
+  is 16px, which is the magic number to prevent iOS Safari from zooming in.
+  The !important tag makes sure this rule is not overridden by other styles.
+*/
+input, textarea {
+  font-size: 16px !important;
+}
+
+/* This removes the default blue outline when an input is focused */
+input:focus, textarea:focus {
+  outline: none;
+}

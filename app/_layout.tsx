@@ -13,6 +13,7 @@ import { AuthProvider } from '@/contexts/AuthContext';
 import { PrayerProvider } from '@/contexts/PrayerContext';
 import { SupabaseUserProvider } from '@/contexts/SupabaseUserContext';
 import { useDisableZoom } from '@/hooks/useDisableZoom'; // <-- 1. IMPORT THE NEW HOOK
+import './global.css';
 
 
 // Keep the splash screen visible while we fetch resources

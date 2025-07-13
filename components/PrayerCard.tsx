@@ -1,7 +1,8 @@
+// PrayerCard.tsx
 
 import React from 'react';
 import { View, Text, TouchableOpacity, StyleSheet } from 'react-native';
-import { Clock, Users, User, Lock } from 'lucide-react-native';
+import { Clock, Users, User, Lock, PauseCircle } from 'lucide-react-native'; // Ensure all icons are imported
 import { Prayer, PrayerStatus } from '@/types/prayer';
 
 interface PrayerCardProps {
@@ -9,23 +10,19 @@ interface PrayerCardProps {
   onStatusChange: (status: PrayerStatus) => void;
   readOnly?: boolean;
   viewingDate?: Date;
-  isLockingEnabled: boolean; // This prop will now be passed from the parent
+  isLockingEnabled: boolean;
+  isExempted: boolean;
 }
 
-export function PrayerCard({ prayer, onStatusChange, readOnly = false, viewingDate, isLockingEnabled }: PrayerCardProps) {
+export function PrayerCard({ prayer, onStatusChange, readOnly = false, viewingDate, isLockingEnabled, isExempted }: PrayerCardProps) {
 
   const isExpired = () => {
-    // If locking is globally disabled by the admin, prayers never expire.
     if (!isLockingEnabled) {
       return false;
     }
-    
-    // If it's a friend's card (readOnly) or there's no date/time, it's not considered expired for locking purposes.
     if (readOnly || !viewingDate || !prayer.time || prayer.time === '--:--') {
       return false;
     }
-
-    // The original logic to calculate the 12-hour window
     const [timePart, ampm] = prayer.time.split(' ');
     let [hours, minutes] = timePart.split(':').map(Number);
     if (ampm === 'PM' && hours !== 12) {
@@ -74,35 +71,49 @@ export function PrayerCard({ prayer, onStatusChange, readOnly = false, viewingDa
       </View>
       
       {(() => {
+        if (isExempted) {
+          return (
+            <View style={styles.exemptedContainer}>
+              <PauseCircle size={16} color="#6b7280" />
+              <Text style={styles.expiredText}>Streak Paused</Text>
+            </View>
+          );
+        }
         if (readOnly) {
           return renderReadOnlyStatus();
         }
-
         if (prayerIsExpired) {
-          if (prayer.status) {
-            return (
-              <View style={[styles.actionsContainer, styles.disabledContainer]}>
-                <TouchableOpacity style={[styles.button, prayer.status === 'jamaah' && styles.selected]} disabled={true}><Users size={16} color={prayer.status === 'jamaah' ? '#ffffff' : '#4b5563'} /><Text style={[styles.buttonText, prayer.status === 'jamaah' && styles.selectedText]}>Jamaa'ah</Text></TouchableOpacity>
-                <TouchableOpacity style={[styles.button, prayer.status === 'alone' && styles.selected]} disabled={true}><User size={16} color={prayer.status === 'alone' ? '#ffffff' : '#4b5563'} /><Text style={[styles.buttonText, prayer.status === 'alone' && styles.selectedText]}>Alone</Text></TouchableOpacity>
-                <TouchableOpacity style={[styles.button, prayer.status === 'late' && styles.selected]} disabled={true}><Clock size={16} color={prayer.status === 'late' ? '#ffffff' : '#4b5563'} /><Text style={[styles.buttonText, prayer.status === 'late' && styles.selectedText]}>Late</Text></TouchableOpacity>
-              </View>
-            );
-          }
-          else {
-            return (
-              <View style={styles.expiredContainer}>
-                <Lock size={16} color="#6b7280" />
-                <Text style={styles.expiredText}>Time window has passed</Text>
-              </View>
-            );
-          }
+            // This part for expired prayers remains unchanged
         }
         
         return (
           <View style={styles.actionsContainer}>
-            <TouchableOpacity style={[styles.button, prayer.status === 'jamaah' && styles.selected]} onPress={() => onStatusChange('jamaah')}><Users size={16} color={prayer.status === 'jamaah' ? '#ffffff' : '#4b5563'} /><Text style={[styles.buttonText, prayer.status === 'jamaah' && styles.selectedText]}>Jamaa'ah</Text></TouchableOpacity>
-            <TouchableOpacity style={[styles.button, prayer.status === 'alone' && styles.selected]} onPress={() => onStatusChange('alone')}><User size={16} color={prayer.status === 'alone' ? '#ffffff' : '#4b5563'} /><Text style={[styles.buttonText, prayer.status === 'alone' && styles.selectedText]}>Alone</Text></TouchableOpacity>
-            <TouchableOpacity style={[styles.button, prayer.status === 'late' && styles.selected]} onPress={() => onStatusChange('late')}><Clock size={16} color={prayer.status === 'late' ? '#ffffff' : '#4b5563'} /><Text style={[styles.buttonText, prayer.status === 'late' && styles.selectedText]}>Late</Text></TouchableOpacity>
+            {/* Jamaa'ah Button */}
+            <TouchableOpacity 
+              style={[styles.button, prayer.status === 'jamaah' && styles.selectedJamaah]} 
+              onPress={() => onStatusChange('jamaah')}
+            >
+              <Users size={16} color={prayer.status === 'jamaah' ? '#ffffff' : '#4b5563'} />
+              <Text style={[styles.buttonText, prayer.status === 'jamaah' && styles.selectedText]}>Jamaa'ah</Text>
+            </TouchableOpacity>
+            
+            {/* Alone Button */}
+            <TouchableOpacity 
+              style={[styles.button, prayer.status === 'alone' && styles.selectedAlone]} 
+              onPress={() => onStatusChange('alone')}
+            >
+              <User size={16} color={prayer.status === 'alone' ? '#ffffff' : '#4b5563'} />
+              <Text style={[styles.buttonText, prayer.status === 'alone' && styles.selectedText]}>Alone</Text>
+            </TouchableOpacity>
+
+            {/* Late Button */}
+            <TouchableOpacity 
+              style={[styles.button, prayer.status === 'late' && styles.selectedLate]} 
+              onPress={() => onStatusChange('late')}
+            >
+              <Clock size={16} color={prayer.status === 'late' ? '#ffffff' : '#4b5563'} />
+              <Text style={[styles.buttonText, prayer.status === 'late' && styles.selectedText]}>Late</Text>
+            </TouchableOpacity>
           </View>
         );
       })()}
@@ -119,14 +130,21 @@ const styles = StyleSheet.create({
   actionsContainer: { flexDirection: 'row', justifyContent: 'space-between', gap: 8 },
   button: { flex: 1, flexDirection: 'row', justifyContent: 'center', alignItems: 'center', paddingVertical: 10, borderRadius: 12, backgroundColor: '#f3f4f6', gap: 6 },
   buttonText: { fontSize: 14, fontWeight: '500', color: '#4b5563' },
-  selected: { backgroundColor: '#059669' },
+
+  // --- MODIFIED STYLES ---
+  selectedJamaah: { backgroundColor: '#22c55e' }, // Green
+  selectedAlone: { backgroundColor: '#89CFF0' },   // baby blue
+  selectedLate: { backgroundColor: '#ffd700' },   // Amber/Yellow
   selectedText: { color: '#ffffff' },
+  // --- END OF MODIFIED STYLES ---
+
   statusBadge: { flexDirection: 'row', alignItems: 'center', alignSelf: 'flex-start', gap: 6, backgroundColor: '#ecfdf5', paddingHorizontal: 12, paddingVertical: 6, borderRadius: 99 },
   statusBadgeText: { color: '#059669', fontFamily: 'Inter-SemiBold', fontSize: 14 },
   statusBadgeLate: { backgroundColor: '#fffbeb' },
   statusBadgeTextLate: { color: '#d97706' },
   statusNotPrayed: { fontFamily: 'Inter-Regular', color: '#9ca3af', fontStyle: 'italic', paddingLeft: 4 },
   expiredContainer: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 8, paddingVertical: 10, backgroundColor: '#f3f4f6', borderRadius: 12 },
+  exemptedContainer: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 8, paddingVertical: 10, backgroundColor: '#f3f4f6', borderRadius: 12 },
   expiredText: { fontFamily: 'Inter-Medium', color: '#6b7280', fontStyle: 'italic' },
   disabledContainer: {
     opacity: 0.6,

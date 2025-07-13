@@ -1,10 +1,11 @@
-
-import React, { createContext, useContext, useState, useEffect } from 'react';
+import React, { createContext, useContext, useState, useEffect, useCallback } from 'react';
 import { supabase } from '@/lib/supabase';
 import { useAuth } from '@/contexts/AuthContext';
 import { Database } from '@/types/database';
 
-type UserProfile = Database['public']['Tables']['users']['Row'];
+type UserProfile = Database['public']['Tables']['users']['Row'] & {
+  gender?: string;
+};
 type AppSettings = Database['public']['Tables']['app_settings']['Row'];
 type Friendship = Database['public']['Tables']['friendships']['Row'] & {
   requester: UserProfile;
@@ -17,6 +18,8 @@ export type LeaderboardEntry = {
 };
 type DailyPrayer = { prayer_name: string; status: string };
 
+type ExemptionPeriod = Database['public']['Tables']['exemption_periods']['Row'];
+
 interface SupabaseUserContextType {
   profile: UserProfile | null;
   friends: Friendship[];
@@ -27,6 +30,8 @@ interface SupabaseUserContextType {
   friendsDailyPrayers: Map<string, DailyPrayer[]>;
   leaderboard: LeaderboardEntry[];
   appSettings: Map<string, boolean>;
+  currentExemption: ExemptionPeriod | null;
+  isExemptedToday: boolean;
   updateProfile: (updates: Partial<UserProfile>) => Promise<void>;
   sendFriendRequest: (email: string) => Promise<{ error?: { message: string } }>;
   respondToFriendRequest: (friendshipId: string, accept: boolean) => Promise<void>;
@@ -34,6 +39,9 @@ interface SupabaseUserContextType {
   removeFriend: (friendshipId: string) => Promise<void>;
   forceReloadLeaderboard: () => Promise<void>;
   updateAppSetting: (settingName: string, value: boolean) => Promise<void>;
+  startExemption: (startDate: string, endDate: string | null, durationDays: number | null, reason: string | null) => Promise<void>;
+  fetchData: () => Promise<void>;
+  endExemption: (exemptionId: string) => Promise<void>;
 }
 
 const SupabaseUserContext = createContext<SupabaseUserContextType | undefined>(undefined);
@@ -46,17 +54,119 @@ const getTodayDateString = () => {
     return `${year}-${month}-${day}`;
 };
 
+const getUTCDateString = (date: Date): string => {
+  return date.toISOString().split('T')[0];
+};
+
+const isDateExempt = (date: Date, exemption: ExemptionPeriod | null) => {
+    if (!exemption) {
+        return false;
+    }
+    const checkDateString = getUTCDateString(date);
+    const exemptionStart = exemption.start_date;
+    const exemptionEnd = exemption.end_date;
+    const isWithinRange = checkDateString >= exemptionStart && 
+                          (exemptionEnd === null || checkDateString <= exemptionEnd);
+    return isWithinRange;
+};
+
+
 export function SupabaseUserProvider({ children }: { children: React.ReactNode }) {
   const { user } = useAuth();
   const [profile, setProfile] = useState<UserProfile | null>(null);
   const [friends, setFriends] = useState<Friendship[]>([]);
   const [loading, setLoading] = useState(true);
   const [personalStreak, setPersonalStreak] = useState(0);
+
   const [sharedStreaks, setSharedStreaks] = useState<Map<string, number>>(new Map());
   const [friendsPersonalStreaks, setFriendsPersonalStreaks] = useState<Map<string, number>>(new Map());
   const [friendsDailyPrayers, setFriendsDailyPrayers] = useState<Map<string, DailyPrayer[]>>(new Map());
   const [leaderboard, setLeaderboard] = useState<LeaderboardEntry[]>([]);
   const [appSettings, setAppSettings] = useState<Map<string, boolean>>(new Map());
+  const [currentExemption, setCurrentExemption] = useState<ExemptionPeriod | null>(null);
+
+  const isExemptedToday = currentExemption ? isDateExempt(new Date(), currentExemption) : false;
+
+  const loadProfile = useCallback(async () => {
+    if (!user) return;
+    const { data, error } = await supabase.from('users').select('*').eq('id', user.id).single();
+    if (error) console.error('Error loading profile:', error);
+    else setProfile(data);
+  }, [user]);
+
+  const loadCurrentExemption = useCallback(async () => {
+    if (!user) return;
+    const today = getTodayDateString();
+    const { data, error } = await supabase
+      .from('exemption_periods')
+      .select('*')
+      .eq('user_id', user.id)
+      .lte('start_date', today)
+      .or(`end_date.gte.${today},end_date.is.null`)
+      .order('created_at', { ascending: false })
+      .limit(1)
+      .single();
+
+    if (error && error.code !== 'PGRST116') {
+      console.error('Error loading current exemption:', error);
+      setCurrentExemption(null);
+    } else {
+      setCurrentExemption(data || null);
+    }
+  }, [user]);
+
+  const loadPersonalStreak = useCallback(async () => {
+    if (!user) return;
+    const { data, error } = await supabase.rpc('get_personal_perfect_streak', { p_user_id: user.id });
+    if (error) console.error('Error fetching personal streak:', error);
+    else setPersonalStreak(data || 0);
+  }, [user]);
+
+  const loadFriendsAndStreaks = useCallback(async () => {
+    if (!user) return;
+    const { data: friendships, error: friendsError } = await supabase.from('friendships').select(`*, requester:requester_id(id, name, email, gender, is_private), addressee:addressee_id(id, name, email, gender, is_private)`).or(`requester_id.eq.${user.id},addressee_id.eq.${user.id}`);
+    if (friendsError) console.error('Error loading friends:', friendsError);
+    else {
+      const typedFriendships: Friendship[] = friendships?.map(f => ({
+        ...f,
+        requester: { ...f.requester, gender: f.requester?.gender || undefined },
+        addressee: { ...f.addressee, gender: f.addressee?.gender || undefined },
+      })) || [];
+      setFriends(typedFriendships);
+    }
+  }, [user]);
+
+  const loadLeaderboardData = useCallback(async () => {
+    if (!user) return;
+    const { data, error } = await supabase.rpc('get_friends_leaderboard', { p_user_id: user.id });
+    if (error) console.error('Error fetching leaderboard data:', error);
+    else setLeaderboard(data || []);
+  }, [user]);
+
+  const loadAppSettings = useCallback(async () => {
+    const { data, error } = await supabase.from('app_settings').select('*');
+    if (error) console.error('Error loading app settings:', error);
+    else {
+        const newSettingsMap = new Map<string, boolean>();
+        data.forEach(setting => newSettingsMap.set(setting.setting_name, setting.setting_value));
+        setAppSettings(newSettingsMap);
+    }
+  }, []);
+
+  const fetchData = useCallback(async () => {
+    if (!user) return;
+    setLoading(true);
+    await Promise.all([
+      loadProfile(),
+      loadPersonalStreak(),
+      loadFriendsAndStreaks(),
+      loadLeaderboardData(),
+      loadAppSettings(),
+      loadCurrentExemption()
+    ]);
+    setLoading(false);
+  }, [user, loadProfile, loadPersonalStreak, loadFriendsAndStreaks, loadLeaderboardData, loadAppSettings, loadCurrentExemption]);
+
 
   useEffect(() => {
     if (user) {
@@ -70,9 +180,10 @@ export function SupabaseUserProvider({ children }: { children: React.ReactNode }
       setFriendsDailyPrayers(new Map());
       setLeaderboard([]);
       setAppSettings(new Map());
+      setCurrentExemption(null);
       setLoading(false);
     }
-  }, [user]);
+  }, [user, fetchData]);
 
   useEffect(() => {
     if (!user) return;
@@ -81,6 +192,7 @@ export function SupabaseUserProvider({ children }: { children: React.ReactNode }
         loadPersonalStreak();
         loadFriendsAndStreaks();
         loadLeaderboardData();
+        loadCurrentExemption();
     };
 
     const prayersListener = supabase
@@ -97,17 +209,20 @@ export function SupabaseUserProvider({ children }: { children: React.ReactNode }
       .channel('public:app_settings')
       .on('postgres_changes', { event: '*', schema: 'public', table: 'app_settings' }, () => loadAppSettings())
       .subscribe();
+    
+    const exemptionsListener = supabase
+      .channel('public:exemption_periods')
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'exemption_periods', filter: `user_id=eq.${user.id}` }, handleAllUpdates)
+      .subscribe();
 
     return () => {
       supabase.removeChannel(prayersListener);
       supabase.removeChannel(settingsListener);
       supabase.removeChannel(friendsListener);
+      supabase.removeChannel(exemptionsListener);
     };
-  }, [user]);
+  }, [user, loadPersonalStreak, loadFriendsAndStreaks, loadLeaderboardData, loadAppSettings, loadCurrentExemption]);
 
-  // --- PERFORMANCE FIX ---
-  // This effect now runs ONLY when the friends list changes.
-  // It fetches secondary data (streaks, daily prayers) in the background without blocking the UI.
   useEffect(() => {
     if (!user || friends.length === 0) {
         setSharedStreaks(new Map());
@@ -117,111 +232,92 @@ export function SupabaseUserProvider({ children }: { children: React.ReactNode }
     };
 
     const fetchSecondaryFriendData = async () => {
-        const acceptedFriendIds = friends
-            .filter(f => f.status === 'accepted')
-            .map(f => (f.requester_id === user.id ? f.addressee_id : f.requester_id));
+      const acceptedFriends = friends.filter(f => f.status === 'accepted');
 
-        if (acceptedFriendIds.length === 0) {
-            setSharedStreaks(new Map());
-            setFriendsPersonalStreaks(new Map());
-            setFriendsDailyPrayers(new Map());
-            return;
-        }
+      if (acceptedFriends.length === 0) {
+        setSharedStreaks(new Map());
+        setFriendsPersonalStreaks(new Map());
+        setFriendsDailyPrayers(new Map());
+        return;
+      }
 
-        const today = getTodayDateString();
-        
-        const sharedStreaksPromise = supabase.rpc('get_all_shared_streaks', { p_user_id: user.id });
-        const dailyPrayersPromise = supabase.from('prayers').select('user_id, prayer_name, status').in('user_id', acceptedFriendIds).eq('prayer_date', today);
-        const personalStreaksPromises = acceptedFriendIds.map(id => 
-            supabase.rpc('get_personal_perfect_streak', { p_user_id: id }).then(({ data, error }) => ({ id, data, error }))
-        );
+      const acceptedFriendIds = acceptedFriends.map(f => (f.requester_id === user.id ? f.addressee_id : f.requester_id));
 
-        const [sharedStreaksResult, dailyPrayersResult, personalStreaksResults] = await Promise.all([
-            sharedStreaksPromise,
-            dailyPrayersPromise,
-            Promise.all(personalStreaksPromises)
-        ]);
+      const friendProfilesMap = new Map<string, UserProfile>();
+      acceptedFriends.forEach(f => {
+        const friendId = f.requester_id === user.id ? f.addressee_id : f.requester_id;
+        const friendProfile = f.requester_id === user.id ? f.addressee : f.requester;
+        friendProfilesMap.set(friendId, friendProfile);
+      });
 
-        if (!sharedStreaksResult.error) {
-            const newStreaksMap = new Map<string, number>();
-            sharedStreaksResult.data?.forEach(item => newStreaksMap.set(item.friendship_id, item.streak));
-            setSharedStreaks(newStreaksMap);
-        }
+      const todayString = getTodayDateString();
+      const sharedStreaksPromise = supabase.rpc('get_all_shared_streaks', { p_user_id: user.id });
+      const personalStreaksPromises = acceptedFriendIds.map(id =>
+        supabase.rpc('get_personal_perfect_streak', { p_user_id: id }).then(({ data, error }) => ({ id, data, error }))
+      );
+      const dailyPrayersPromise = supabase.from('prayers').select('user_id, prayer_name, status').in('user_id', acceptedFriendIds).eq('prayer_date', todayString);
+      const exemptionsPromise = supabase.from('exemption_periods').select('user_id, start_date, end_date, created_at').in('user_id', acceptedFriendIds).order('created_at', { ascending: false });
 
-        if (!dailyPrayersResult.error) {
-            const prayersMap = new Map<string, DailyPrayer[]>();
-            dailyPrayersResult.data.forEach(prayer => {
-                const existing = prayersMap.get(prayer.user_id) || [];
-                prayersMap.set(prayer.user_id, [...existing, { prayer_name: prayer.prayer_name, status: prayer.status }]);
-            });
-            setFriendsDailyPrayers(prayersMap);
-        }
+      const [
+        sharedStreaksResult,
+        dailyPrayersResult,
+        personalStreaksResults,
+        exemptionsResult
+      ] = await Promise.all([
+        sharedStreaksPromise,
+        dailyPrayersPromise,
+        Promise.all(personalStreaksPromises),
+        exemptionsPromise
+      ]);
 
-        const newFriendsPersonalStreaks = new Map<string, number>();
-        personalStreaksResults.forEach(result => {
-            if (!result.error) {
-                newFriendsPersonalStreaks.set(result.id, result.data || 0);
-            }
+      if (!sharedStreaksResult.error) {
+        const newStreaksMap = new Map<string, number>();
+        sharedStreaksResult.data?.forEach(item => newStreaksMap.set(item.friendship_id, item.streak));
+        setSharedStreaks(newStreaksMap);
+      }
+
+      const newFriendsPersonalStreaks = new Map<string, number>();
+      personalStreaksResults.forEach(result => {
+        if (!result.error) newFriendsPersonalStreaks.set(result.id, result.data || 0);
+      });
+      setFriendsPersonalStreaks(newFriendsPersonalStreaks);
+
+      const friendExemptionMap = new Map<string, ExemptionPeriod>();
+      if (exemptionsResult.data) {
+        exemptionsResult.data.forEach(ex => {
+          if (isDateExempt(new Date(), ex) && (!friendExemptionMap.has(ex.user_id) || new Date(ex.created_at!) > new Date(friendExemptionMap.get(ex.user_id)!.created_at!))) {
+            friendExemptionMap.set(ex.user_id, ex);
+          }
         });
-        setFriendsPersonalStreaks(newFriendsPersonalStreaks);
+      }
+
+      const prayersMap = new Map<string, DailyPrayer[]>();
+      if (dailyPrayersResult.data) {
+        acceptedFriendIds.forEach(friendId => {
+          const profile = friendProfilesMap.get(friendId);
+          if (profile?.is_private) {
+            prayersMap.set(friendId, [{ prayer_name: 'private', status: 'private' }]);
+          } else if (friendExemptionMap.has(friendId)) {
+            prayersMap.set(friendId, [
+              { prayer_name: 'Fajr', status: 'jamaah' },
+              { prayer_name: 'Dhuhr', status: 'jamaah' },
+              { prayer_name: 'Asr', status: 'jamaah' },
+              { prayer_name: 'Maghrib', status: 'jamaah' },
+              { prayer_name: 'Isha', status: 'jamaah' },
+            ]);
+          } else {
+            const prayers = dailyPrayersResult.data.filter(p => p.user_id === friendId);
+            prayersMap.set(friendId, prayers.map(p => ({ prayer_name: p.prayer_name, status: p.status })));
+          }
+        });
+      }
+      setFriendsDailyPrayers(prayersMap);
     };
 
     fetchSecondaryFriendData();
-
   }, [friends, user]);
 
 
-  const fetchData = async () => {
-    if (!user) return;
-    setLoading(true);
-    await Promise.all([
-      loadProfile(),
-      loadPersonalStreak(),
-      loadFriendsAndStreaks(),
-      loadLeaderboardData(),
-      loadAppSettings()
-    ]);
-    setLoading(false);
-  };
-
-  const loadAppSettings = async () => {
-    const { data, error } = await supabase.from('app_settings').select('*');
-    if (error) console.error('Error loading app settings:', error);
-    else {
-        const newSettingsMap = new Map<string, boolean>();
-        data.forEach(setting => newSettingsMap.set(setting.setting_name, setting.setting_value));
-        setAppSettings(newSettingsMap);
-    }
-  }
-
-  const loadProfile = async () => {
-    if (!user) return;
-    const { data, error } = await supabase.from('users').select('*').eq('id', user.id).single();
-    if (error) console.error('Error loading profile:', error);
-    else setProfile(data);
-  };
-
-  const loadPersonalStreak = async () => {
-    if (!user) return;
-    const { data, error } = await supabase.rpc('get_personal_perfect_streak', { p_user_id: user.id });
-    if (error) console.error('Error fetching personal streak:', error);
-    else setPersonalStreak(data || 0);
-  };
-
-  const loadFriendsAndStreaks = async () => {
-    if (!user) return;
-    const { data: friendships, error: friendsError } = await supabase.from('friendships').select(`*, requester:requester_id(*), addressee:addressee_id(*)`).or(`requester_id.eq.${user.id},addressee_id.eq.${user.id}`);
-    if (friendsError) console.error('Error loading friends:', friendsError);
-    else setFriends(friendships || []);
-  };
-
-  const loadLeaderboardData = async () => {
-    if (!user) return;
-    const { data, error } = await supabase.rpc('get_friends_leaderboard', { p_user_id: user.id });
-    if (error) console.error('Error fetching leaderboard data:', error);
-    else setLeaderboard(data || []);
-  };
-  
   const forceReloadLeaderboard = async () => {
     await loadLeaderboardData();
   };
@@ -231,6 +327,9 @@ export function SupabaseUserProvider({ children }: { children: React.ReactNode }
     const { error } = await supabase.from('users').update(updates).eq('id', user.id);
     if (error) throw error;
     setProfile(prev => prev ? { ...prev, ...updates } : null);
+    if (updates.gender !== undefined || updates.is_private !== undefined) {
+        loadFriendsAndStreaks();
+    }
   };
   
   const updateAppSetting = async (settingName: string, value: boolean) => {
@@ -240,6 +339,44 @@ export function SupabaseUserProvider({ children }: { children: React.ReactNode }
       setAppSettings(prev => new Map(prev).set(settingName, value));
   }
 
+  const startExemption = async (startDate: string, endDate: string | null, durationDays: number | null, reason: string | null) => {
+    if (!user) throw new Error('User not logged in.');
+    if (isExemptedToday) {
+      throw new Error('An exemption period is already active. Please end it first.');
+    }
+    const { data, error } = await supabase
+      .from('exemption_periods')
+      .insert({
+        user_id: user.id,
+        start_date: startDate,
+        end_date: endDate,
+        duration_days: durationDays,
+        reason: reason,
+      })
+      .select()
+      .single();
+
+    if (error) {
+      throw error;
+    }
+    setCurrentExemption(data);
+  };
+
+  const endExemption = async (exemptionId: string) => {
+    if (!user) throw new Error('User not logged in.');
+    const { error } = await supabase
+      .from('exemption_periods')
+      .delete()
+      .eq('id', exemptionId)
+      .eq('user_id', user.id);
+
+    if (error) {
+      throw error;
+    }
+    setCurrentExemption(null);
+    loadPersonalStreak();
+  };
+  
   const sendFriendRequest = async (email: string) => {
     if (!user || !profile) return { error: { message: 'You must be logged in.' } };
     const trimmedEmail = email.trim().toLowerCase();
@@ -260,9 +397,8 @@ export function SupabaseUserProvider({ children }: { children: React.ReactNode }
       if (insertError) throw insertError;
       
       return { error: null };
-    } catch (error) {
-      console.error('Error sending friend request:', error);
-      return { error: { message: 'An unexpected error occurred. Please try again.' } };
+    } catch (error: any) {
+      return { error: { message: error.message || 'An unexpected error occurred. Please try again.' } };
     }
   };
 
@@ -286,9 +422,11 @@ export function SupabaseUserProvider({ children }: { children: React.ReactNode }
   return (
     <SupabaseUserContext.Provider value={{
       profile, friends, loading, personalStreak, sharedStreaks, friendsPersonalStreaks, friendsDailyPrayers, leaderboard, appSettings,
+      currentExemption, isExemptedToday,
       updateProfile, sendFriendRequest, respondToFriendRequest,
       togglePrayerAccess, removeFriend, forceReloadLeaderboard,
-      updateAppSetting
+      updateAppSetting,
+      startExemption, endExemption,fetchData
     }}>
       {children}
     </SupabaseUserContext.Provider>
@@ -302,5 +440,3 @@ export function useSupabaseUser() {
   }
   return context;
 }
-// This code defines a context for managing user profiles, friendships, streaks, and app settings in a React application using Supabase.
-// It provides functions to fetch and update user data, manage friendships, and handle app settings,

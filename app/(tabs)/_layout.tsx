@@ -1,7 +1,6 @@
-
+// app\(tabs)\_layout.tsx
 import React from 'react';
 import { Tabs } from 'expo-router';
-// --- 1. IMPORT A NEW ICON ---
 import { Home, Users, BarChart3, UserCircle, Trophy } from 'lucide-react-native';
 
 export default function TabLayout() {

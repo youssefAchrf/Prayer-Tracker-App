@@ -1,6 +1,11 @@
 
-import React, { useState } from 'react';
-import { View, Text, StyleSheet, ScrollView, SafeAreaView, TouchableOpacity, TextInput, Platform, StatusBar, ActivityIndicator, Modal, LayoutAnimation, UIManager } from 'react-native';
+// app/(tabs)/friend/index.tsx
+import React, { useState, useCallback } from 'react';
+import {
+  View, Text, StyleSheet, ScrollView, SafeAreaView, TouchableOpacity,
+  TextInput, Platform, StatusBar, ActivityIndicator, Modal, LayoutAnimation,
+  UIManager, Image
+} from 'react-native';
 import { router } from 'expo-router';
 import { Plus, User as UserIcon, Mail, Check, X, ChevronRight, Trash2, MoreVertical, AlertTriangle, Flame } from 'lucide-react-native';
 import { useSupabaseUser } from '@/contexts/SupabaseUserContext';
@@ -11,7 +16,7 @@ if (Platform.OS === 'android' && UIManager.setLayoutAnimationEnabledExperimental
   UIManager.setLayoutAnimationEnabledExperimental(true);
 }
 
-// The action sheet no longer contains the prayer access toggle
+// ... (Modal components remain unchanged)
 const FriendActionSheet = ({ visible, onClose, onSelect, friend }) => {
     if (!visible || !friend) return null;
     const handleAction = (action) => { onSelect(action, friend); onClose(); };
@@ -48,27 +53,39 @@ const ConfirmRemoveModal = ({ visible, onClose, onConfirm, friendName }) => {
     );
 };
 
-const CustomAlertModal = ({ visible, onClose, title, message }) => {
+const CustomAlertModal = ({ visible, onClose, title, message, showAcknowledgeButton = true }) => {
     if (!visible) return null;
+    const isSuccess = title === 'Success!';
+    const Icon = isSuccess ? Check : AlertTriangle;
+    const iconColor = isSuccess ? '#059669' : '#f59e0b';
+
     return (
         <Modal visible={visible} transparent={true} animationType="fade" onRequestClose={onClose}>
             <View style={styles.modalOverlay}>
                 <View style={styles.alertModalContent}>
+                    <Icon size={48} color={iconColor} style={styles.alertIcon} />
                     <Text style={styles.alertModalTitle}>{title}</Text>
                     <Text style={styles.alertModalMessage}>{message}</Text>
-                    <TouchableOpacity style={styles.alertModalButton} onPress={onClose}>
-                        <Text style={styles.alertModalButtonText}>Acknowledge</Text>
-                    </TouchableOpacity>
+                    {showAcknowledgeButton && (
+                        <TouchableOpacity style={styles.alertModalButton} onPress={onClose}>
+                            <Text style={styles.alertModalButtonText}>Acknowledge</Text>
+                        </TouchableOpacity>
+                    )}
                 </View>
             </View>
         </Modal>
     );
 };
-  
+
+
 export default function FriendsScreen() {
-  // Removed `togglePrayerAccess` as it's no longer used here
-  const { profile, friends, sharedStreaks, friendsPersonalStreaks, friendsDailyPrayers, sendFriendRequest, respondToFriendRequest, removeFriend, loading } = useSupabaseUser();
-  
+  const {
+    profile, friends, sharedStreaks, friendsPersonalStreaks, friendsDailyPrayers,
+    sendFriendRequest, respondToFriendRequest, removeFriend,
+    loading: contextLoading,
+    fetchData
+  } = useSupabaseUser();
+
   const [showAddFriend, setShowAddFriend] = useState(false);
   const [newFriendEmail, setNewFriendEmail] = useState('');
   const [requestLoading, setRequestLoading] = useState(false);
@@ -76,14 +93,25 @@ export default function FriendsScreen() {
   const [isActionSheetVisible, setActionSheetVisible] = useState(false);
   const [selectedFriend, setSelectedFriend] = useState(null);
   const [isConfirmModalVisible, setConfirmModalVisible] = useState(false);
-  
-  const [alertInfo, setAlertInfo] = useState({ visible: false, title: '', message: '' });
+  const [alertInfo, setAlertInfo] = useState({ visible: false, title: '', message: '', showAcknowledgeButton: true });
+  const [isRefreshing, setIsRefreshing] = useState(false);
 
-  if (loading) {
+  const handleRefresh = useCallback(async () => {
+    setIsRefreshing(true);
+    try {
+      await fetchData();
+    } catch (error) {
+      console.error("Failed to refresh friend data:", error);
+    } finally {
+      setIsRefreshing(false);
+    }
+  }, [fetchData]);
+
+  if (contextLoading && !isRefreshing) {
     return (
-        <SafeAreaView style={styles.container}>
-            <ActivityIndicator style={{ flex: 1 }} size="large" color="#059669" />
-        </SafeAreaView>
+      <SafeAreaView style={styles.container}>
+        <ActivityIndicator style={{ flex: 1 }} size="large" color="#059669" />
+      </SafeAreaView>
     );
   }
 
@@ -96,21 +124,34 @@ export default function FriendsScreen() {
     setRequestLoading(false);
 
     if (error) {
-      setAlertInfo({ visible: true, title: 'Request Failed', message: error.message });
+      setAlertInfo({ visible: true, title: 'Request Failed', message: error.message, showAcknowledgeButton: true });
     } else {
-      setAlertInfo({ visible: true, title: 'Success!', message: 'Your friend request has been sent.' });
+      setAlertInfo({ visible: true, title: 'Success!', message: 'Your friend request has been sent.', showAcknowledgeButton: true });
       setNewFriendEmail('');
       setShowAddFriend(false);
     }
   };
 
   const handleFriendPress = (friendship) => {
-    if (!profile) return;
+    if (!profile) {
+      console.warn("[FriendsScreen] handleFriendPress: User profile not available.");
+      return;
+    }
     const friendProfile = friendship.requester_id === profile.id ? friendship.addressee : friendship.requester;
+
+    if (friendProfile?.is_private) {
+      setAlertInfo({
+        visible: true,
+        title: 'Private Profile',
+        message: `${friendProfile.name || 'This user'} has set their prayer data to private. You cannot view their detailed prayer logs.`,
+        showAcknowledgeButton: true,
+      });
+      return;
+    }
+
     if (friendProfile) { router.push(`/friend/${friendProfile.id}`); }
   };
 
-  // Removed the 'toggle_access' case
   const handleActionSelect = (action, friendship) => {
     const friendProfile = friendship.requester_id === profile.id ? friendship.addressee : friendship.requester;
     setActionSheetVisible(false);
@@ -120,7 +161,7 @@ export default function FriendsScreen() {
       default: break;
     }
   };
-  
+
   const onConfirmRemove = () => {
     if (selectedFriend) {
       LayoutAnimation.configureNext(LayoutAnimation.Presets.easeInEaseOut);
@@ -137,23 +178,30 @@ export default function FriendsScreen() {
 
   return (
     <SafeAreaView style={styles.container}>
-      <FriendActionSheet visible={isActionSheetVisible} onClose={() => setActionSheetVisible(false)} onSelect={handleActionSelect} friend={selectedFriend}/>
+      <FriendActionSheet visible={isActionSheetVisible} onClose={() => setActionSheetVisible(false)} onSelect={handleActionSelect} friend={selectedFriend} />
       <ConfirmRemoveModal visible={isConfirmModalVisible} onClose={() => setConfirmModalVisible(false)} onConfirm={onConfirmRemove} friendName={selectedFriend?.profile?.name} />
-      <CustomAlertModal visible={alertInfo.visible} title={alertInfo.title} message={alertInfo.message} onClose={() => setAlertInfo({ visible: false, title: '', message: '' })} />
-      
+      <CustomAlertModal visible={alertInfo.visible} title={alertInfo.title} message={alertInfo.message} onClose={() => setAlertInfo({ visible: false, title: '', message: '', showAcknowledgeButton: true })} showAcknowledgeButton={alertInfo.showAcknowledgeButton} />
+
+      {/* --- MODIFIED HEADER --- */}
       <View style={styles.header}>
-        <Text style={styles.headerTitle}>Friends</Text>
+        <TouchableOpacity onPress={handleRefresh} disabled={isRefreshing}>
+          {/* The text color now changes to green when refreshing */}
+          <Text style={[styles.headerTitle, isRefreshing && styles.headerTitleRefreshing]}>
+            Friends
+          </Text>
+        </TouchableOpacity>
         <TouchableOpacity style={styles.addButton} onPress={() => setShowAddFriend(true)}>
           <Plus size={20} color="#ffffff" />
         </TouchableOpacity>
       </View>
+
       <ScrollView style={styles.content} showsVerticalScrollIndicator={false}>
         {showAddFriend && (
           <View style={styles.addFriendCard}>
             <Text style={styles.cardTitle}>Add New Friend</Text>
             <View style={[styles.inputContainer, isNewFriendEmailFocused && styles.inputContainerFocused]}>
               <Mail size={20} color={isNewFriendEmailFocused ? '#059669' : '#6b7280'} />
-              <TextInput style={styles.textInput} placeholder="friend@example.com" value={newFriendEmail} onChangeText={setNewFriendEmail} autoCapitalize="none" onFocus={() => setIsNewFriendEmailFocused(true)} onBlur={() => setIsNewFriendEmailFocused(false)} placeholderTextColor="#9ca3af"/>
+              <TextInput style={styles.textInput} placeholder="friend@example.com" value={newFriendEmail} onChangeText={setNewFriendEmail} autoCapitalize="none" onFocus={() => setIsNewFriendEmailFocused(true)} onBlur={() => setIsNewFriendEmailFocused(false)} placeholderTextColor="#9ca3af" />
             </View>
             <View style={styles.buttonRow}>
               <TouchableOpacity style={[styles.button, styles.cancelBtn]} onPress={handleCancelAddFriend}><Text style={styles.cancelButtonText}>Cancel</Text></TouchableOpacity>
@@ -197,29 +245,36 @@ export default function FriendsScreen() {
             const sharedStreak = sharedStreaks.get(friendship.id) || 0;
             const personalStreak = friendsPersonalStreaks.get(friendProfile.id) || 0;
             const dailyPrayers = friendsDailyPrayers.get(friendProfile.id) || [];
+            const isFriendPrivate = friendProfile?.is_private ?? false;
 
             return (
               <TouchableOpacity key={friendship.id} style={styles.friendCard} onPress={() => handleFriendPress(friendship)}>
                 <View style={styles.friendInfo}>
-                  <UserIcon size={24} color="#6b7280" />
+                  {friendProfile?.avatar_url ? (
+                    <Image source={{ uri: friendProfile.avatar_url }} style={styles.avatar} />
+                  ) : (
+                    <View style={styles.avatar}>
+                      <UserIcon size={24} color="#6b7280" />
+                    </View>
+                  )}
                   <View style={styles.friendDetails}>
                     <View style={styles.nameAndBadgeContainer}>
-                        <Text style={styles.friendName}>{friendProfile?.name || 'User'}</Text>
-                        <StreakBadge streak={personalStreak} size={16} />
+                      <Text style={styles.friendName}>{friendProfile?.name || 'User'}</Text>
+                      <StreakBadge streak={personalStreak} size={16} />
                     </View>
-                    <FriendPrayerStatus prayers={dailyPrayers} />
+                    <FriendPrayerStatus prayers={dailyPrayers} isPrivateProfile={isFriendPrivate} />
                   </View>
                 </View>
                 <View style={styles.friendActions}>
-                    {sharedStreak > 0 && (
-                        <View style={styles.streakContainer}>
-                            <Flame size={14} color="#f97316" />
-                            <Text style={styles.streakText}>{sharedStreak}</Text>
-                        </View>
-                    )}
-                    <TouchableOpacity style={styles.moreButton} onPress={(e) => { e.stopPropagation(); setSelectedFriend({ ...friendship, profile: friendProfile }); setActionSheetVisible(true); }}>
-                        <MoreVertical size={20} color="#6b7280" />
-                    </TouchableOpacity>
+                  {sharedStreak > 0 && (
+                    <View style={styles.streakContainer}>
+                      <Flame size={14} color="#f97316" />
+                      <Text style={styles.streakText}>{sharedStreak}</Text>
+                    </View>
+                  )}
+                  <TouchableOpacity style={styles.moreButton} onPress={(e) => { e.stopPropagation(); setSelectedFriend({ ...friendship, profile: friendProfile }); setActionSheetVisible(true); }}>
+                    <MoreVertical size={20} color="#6b7280" />
+                  </TouchableOpacity>
                 </View>
               </TouchableOpacity>
             );
@@ -234,6 +289,10 @@ const styles = StyleSheet.create({
   container: { flex: 1, backgroundColor: '#f9fafb', paddingTop: Platform.OS === 'android' ? StatusBar.currentHeight : 0, },
   header: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', paddingHorizontal: 20, paddingVertical: 20, backgroundColor: '#ffffff', borderBottomWidth: 1, borderBottomColor: '#e5e7eb' },
   headerTitle: { fontSize: 24, fontFamily: 'Inter-Bold', color: '#1f2937' },
+  // --- ADDED STYLE for the refreshing state ---
+  headerTitleRefreshing: {
+    color: '#059669', // This is the green color
+  },
   addButton: { backgroundColor: '#059669', width: 40, height: 40, borderRadius: 20, justifyContent: 'center', alignItems: 'center' },
   content: { flex: 1, paddingHorizontal: 16 },
   addFriendCard: { backgroundColor: '#ffffff', borderRadius: 16, padding: 20, marginVertical: 8, borderWidth: 1, borderColor: '#e5e7eb' },
@@ -251,7 +310,16 @@ const styles = StyleSheet.create({
   sectionTitle: { fontSize: 18, fontFamily: 'Inter-SemiBold', color: '#1f2937', marginBottom: 8, marginLeft: 4, marginTop: 16 },
   friendCard: { flexDirection: 'row', alignItems: 'center', backgroundColor: '#ffffff', padding: 16, borderRadius: 12, marginBottom: 8, borderWidth: 1, borderColor: '#e5e7eb' },
   friendInfo: { flexDirection: 'row', alignItems: 'center', flex: 1 },
-  friendDetails: { flex: 1, marginLeft: 16 },
+  avatar: {
+    width: 40,
+    height: 40,
+    borderRadius: 20,
+    backgroundColor: '#f3f4f6',
+    justifyContent: 'center',
+    alignItems: 'center',
+    marginRight: 12,
+  },
+  friendDetails: { flex: 1, },
   nameAndBadgeContainer: { flexDirection: 'row', alignItems: 'center', gap: 6 },
   friendName: { fontSize: 16, fontFamily: 'Inter-SemiBold', color: '#1f2937' },
   friendEmail: { fontSize: 12, color: '#6b7280' },
@@ -263,8 +331,6 @@ const styles = StyleSheet.create({
   moreButton: { padding: 8 },
   streakContainer: { flexDirection: 'row', alignItems: 'center', backgroundColor: '#fff7ed', borderRadius: 99, paddingHorizontal: 8, paddingVertical: 4, },
   streakText: { marginLeft: 4, fontFamily: 'Inter-Bold', color: '#c2410c', fontSize: 12, },
-  
-  // Modal/Alert styles
   modalOverlay: { flex: 1, backgroundColor: 'rgba(0,0,0,0.5)', justifyContent: 'center', alignItems: 'center', padding: 20 },
   actionSheetContainer: { position: 'absolute', bottom: 0, width: '100%', backgroundColor: '#f9fafb', borderTopLeftRadius: 20, borderTopRightRadius: 20, padding: 16, },
   actionSheetHeader: { paddingBottom: 16, borderBottomWidth: 1, borderBottomColor: '#e5e7eb', marginBottom: 8, },
@@ -288,4 +354,5 @@ const styles = StyleSheet.create({
   alertModalMessage: { fontSize: 14, fontFamily: 'Inter-Regular', textAlign: 'center', color: '#6b7280', marginBottom: 24, lineHeight: 20, },
   alertModalButton: { backgroundColor: '#059669', paddingVertical: 12, borderRadius: 12, alignItems: 'center', alignSelf: 'stretch' },
   alertModalButtonText: { color: 'white', fontFamily: 'Inter-SemiBold', fontSize: 16, },
+  alertIcon: { marginBottom: 16 },
 });

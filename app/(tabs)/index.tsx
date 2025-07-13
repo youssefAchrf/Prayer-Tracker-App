@@ -1,176 +1,16 @@
-
-// import React, { useState, useEffect } from 'react';
-// import {
-//   View,
-//   Text,
-//   StyleSheet,
-//   SafeAreaView,
-//   ScrollView,
-//   TouchableOpacity,
-//   ActivityIndicator,
-//   Platform,
-//   StatusBar
-// } from 'react-native';
-// import { usePrayer } from '@/contexts/PrayerContext';
-// import { PrayerCard } from '@/components/PrayerCard';
-// import { ChevronLeft, ChevronRight, Sun, Moon } from 'lucide-react-native';
-// import { useAuth } from '@/contexts/AuthContext';
-// import { LinearGradient } from 'expo-linear-gradient';
-// //import { useSupabaseUser } from '@/contexts/SupabaseUserContext';
-
-// export default function PrayerTrackerScreen() {
-//   const { displayedPrayers, loadPrayersForDate, updatePrayerStatus, loading } = usePrayer();
-//   const { user } = useAuth();
-//   const [selectedDate, setSelectedDate] = useState(new Date());
-//   //const { isPrayerLockingEnabled } = useSupabaseUser();
-
-//   useEffect(() => {
-//     if (user) {
-//       loadPrayersForDate(selectedDate);
-//     }
-//   }, [selectedDate, user]);
-
-//   const goToPreviousDay = () => {
-//     const newDate = new Date(selectedDate);
-//     newDate.setDate(selectedDate.getDate() - 1);
-//     setSelectedDate(newDate);
-//   };
-
-//   const goToNextDay = () => {
-//     const today = new Date();
-//     today.setHours(0,0,0,0); // Normalize today's date
-//     const currentDate = new Date(selectedDate);
-//     currentDate.setHours(0,0,0,0); // Normalize selected date
-
-//     // Prevent going into the future
-//     if (currentDate < today) {
-//         const newDate = new Date(selectedDate);
-//         newDate.setDate(selectedDate.getDate() + 1);
-//         //setSelectedDate(newDate);
-//     }
-//   };
-
-//   const getGreeting = () => {
-//     const hour = new Date().getHours();
-//     if (hour < 12) return 'Good morning';
-//     if (hour < 17) return 'Good afternoon';
-//     return 'Good evening';
-//   };
-  
-//   const getGreetingIcon = () => {
-//     const hour = new Date().getHours();
-//     if (hour >= 6 && hour < 18) return <Sun size={24} color="#f59e0b" />;
-//     return <Moon size={24} color="#6366f1" />;
-//   };
-
-//   const isToday = new Date().toDateString() === selectedDate.toDateString();
-//   const displayDate = isToday 
-//     ? 'Today' 
-//     : selectedDate.toLocaleDateString('en-US', { month: 'long', day: 'numeric' });
-
-//   return (
-//     <SafeAreaView style={styles.container}>
-//       <LinearGradient colors={['#059669', '#0d9488']} style={styles.header}>
-//         <View style={styles.greetingContainer}>
-//           {getGreetingIcon()}
-//           <Text style={styles.greetingText}>{getGreeting()}</Text>
-//         </View>
-//         <View style={styles.dateNavController}>
-//           <TouchableOpacity onPress={goToPreviousDay} style={styles.navButton}>
-//             <ChevronLeft size={28} color="#ffffff" />
-//           </TouchableOpacity>
-//           <Text style={styles.headerDate}>{displayDate}</Text>
-//           <TouchableOpacity onPress={goToNextDay} style={styles.navButton} disabled={isToday}>
-//             <ChevronRight size={28} color={isToday ? '#ffffff50' : '#ffffff'} />
-//           </TouchableOpacity>
-//         </View>
-//       </LinearGradient>
-      
-//       {loading ? (
-//         <ActivityIndicator style={styles.loader} size="large" color="#059669"/>
-//       ) : (
-//         <ScrollView style={styles.content}>
-//           <Text style={styles.sectionTitle}>Track Your Prayers</Text>
-//           {displayedPrayers.map(prayer => (
-//             <PrayerCard
-//               key={prayer.name}
-//               prayer={prayer}
-//               onStatusChange={(status) => updatePrayerStatus(prayer.name, status, selectedDate)}
-//               viewingDate={selectedDate} // Pass the date to the card
-//               //isLockingEnabled={isPrayerLockingEnabled}
-
-//             />
-//           ))}
-//         </ScrollView>
-//       )}
-//     </SafeAreaView>
-//   );
-// }
-
-// const styles = StyleSheet.create({
-//     container: {
-//         flex: 1,
-//         backgroundColor: '#f9fafb',
-//         paddingTop: Platform.OS === 'android' ? StatusBar.currentHeight : 0,
-//     },
-//     header: {
-//         paddingHorizontal: 20,
-//         paddingTop: 20,
-//         paddingBottom: 20,
-//         borderBottomLeftRadius: 24,
-//         borderBottomRightRadius: 24,
-//     },
-//     greetingContainer: {
-//         flexDirection: 'row',
-//         alignItems: 'center',
-//         gap: 10,
-//         marginBottom: 16,
-//     },
-//     greetingText: {
-//         fontSize: 24,
-//         fontFamily: 'Inter-Bold',
-//         color: '#ffffff',
-//     },
-//     dateNavController: {
-//         flexDirection: 'row',
-//         justifyContent: 'space-between',
-//         alignItems: 'center',
-//         backgroundColor: 'rgba(255, 255, 255, 0.2)',
-//         borderRadius: 99,
-//         paddingHorizontal: 8,
-//     },
-//     navButton: {
-//         padding: 8,
-//     },
-//     headerDate: {
-//         fontSize: 18,
-//         fontFamily: 'Inter-Bold',
-//         color: '#ffffff',
-//     },
-//     content: {
-//         padding: 16,
-//     },
-//     sectionTitle: {
-//       fontSize: 22,
-//       fontFamily: 'Inter-Bold',
-//       color: '#1f2937',
-//       marginBottom: 16,
-//       paddingHorizontal: 8,
-//     },
-//     loader: {
-//       flex: 1,
-//       justifyContent: 'center',
-//       alignItems: 'center',
-//     }
-// });
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useMemo } from 'react'; // Import useMemo
 import { View, Text, StyleSheet, SafeAreaView, ScrollView, TouchableOpacity, ActivityIndicator, Platform, StatusBar } from 'react-native';
-import { ArrowLeft, ArrowRight, Calendar as CalendarIcon, Sun, Moon, User as UserIcon } from 'lucide-react-native';
+// Add PauseCircle to imports
+import { ArrowLeft, ArrowRight, Calendar as CalendarIcon, Sun, Moon, User as UserIcon, PauseCircle } from 'lucide-react-native';
 import DateTimePickerModal from 'react-native-modal-datetime-picker';
 import { usePrayer } from '@/contexts/PrayerContext';
 import { useSupabaseUser } from '@/contexts/SupabaseUserContext';
 import { PrayerCard } from '@/components/PrayerCard';
-import { Prayer } from '@/types/prayer';
+
+// Helper to get UTC date string for accurate comparison
+const getUTCDateString = (date: Date): string => {
+  return date.toISOString().split('T')[0];
+};
 
 const getLocalYYYYMMDD = (date: Date): string => {
   const year = date.getFullYear();
@@ -181,12 +21,27 @@ const getLocalYYYYMMDD = (date: Date): string => {
 
 export default function PrayerScreen() {
   const { displayedPrayers, updatePrayerStatus, loadPrayersForDate, loading: prayersLoading } = usePrayer();
-  const { profile, loading: userLoading, appSettings } = useSupabaseUser();
+  // Get currentExemption from the context
+  const { profile, loading: userLoading, appSettings, currentExemption } = useSupabaseUser();
   
   const [viewingDate, setViewingDate] = useState(new Date());
   const [isDatePickerVisible, setDatePickerVisibility] = useState(false);
 
   const isLockingEnabled = appSettings.get('restrict_late_prayer_logging') ?? false;
+
+  // NEW: Check if the currently viewed date is within the exemption period.
+  const isViewingDateExempt = useMemo(() => {
+    if (!currentExemption) return false;
+    
+    // Use the UTC helper for correct date-only comparison
+    const checkDateString = getUTCDateString(viewingDate);
+    const { start_date, end_date } = currentExemption;
+
+    // Check if the viewing date is on or after the start, and on or before the end.
+    // Handles open-ended exemptions where end_date is null.
+    return checkDateString >= start_date && (end_date === null || checkDateString <= end_date);
+  }, [viewingDate, currentExemption]);
+
 
   useEffect(() => {
     loadPrayersForDate(viewingDate);
@@ -243,17 +98,28 @@ export default function PrayerScreen() {
       {isLoading ? (
         <ActivityIndicator style={{ flex: 1 }} size="large" color="#059669" />
       ) : (
-        <ScrollView contentContainerStyle={styles.scrollContent}>
-          {displayedPrayers.map((prayer, index) => (
-            <PrayerCard
-              key={index}
-              prayer={prayer}
-              onStatusChange={(status) => updatePrayerStatus(prayer.name, status, viewingDate)}
-              viewingDate={viewingDate}
-              isLockingEnabled={isLockingEnabled}
-            />
-          ))}
-        </ScrollView>
+        <>
+          {/* NEW: Display a banner if the day is exempt */}
+          {isViewingDateExempt && (
+            <View style={styles.exemptionBanner}>
+              <PauseCircle size={18} color="#b45309" />
+              <Text style={styles.exemptionBannerText}>Streak is paused for this day.</Text>
+            </View>
+          )}
+          <ScrollView contentContainerStyle={styles.scrollContent}>
+            {displayedPrayers.map((prayer, index) => (
+              <PrayerCard
+                key={index}
+                prayer={prayer}
+                onStatusChange={(status) => updatePrayerStatus(prayer.name, status, viewingDate)}
+                viewingDate={viewingDate}
+                isLockingEnabled={isLockingEnabled}
+                // NEW: Pass the exemption status to the card
+                isExempted={isViewingDateExempt}
+              />
+            ))}
+          </ScrollView>
+        </>
       )}
     </SafeAreaView>
   );
@@ -314,4 +180,23 @@ const styles = StyleSheet.create({
   dateDisplay: { flexDirection: 'row', alignItems: 'center', gap: 8, },
   dateText: { color: '#1f2937', fontSize: 16, fontFamily: 'Inter-SemiBold', },
   scrollContent: { paddingHorizontal: 16, paddingBottom: 16 },
+  // NEW: Styles for the exemption banner
+  exemptionBanner: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+    backgroundColor: '#fffbeb',
+    paddingVertical: 10,
+    paddingHorizontal: 16,
+    marginHorizontal: 16,
+    marginBottom: 8,
+    borderRadius: 12,
+    borderWidth: 1,
+    borderColor: '#fde68a',
+  },
+  exemptionBannerText: {
+    fontFamily: 'Inter-Medium',
+    color: '#b45309',
+    fontSize: 14,
+  },
 });

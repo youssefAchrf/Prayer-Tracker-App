@@ -210,12 +210,12 @@ const styles = StyleSheet.create({
   youLabel: { 
     fontFamily: 'Inter-Medium', 
     color: '#059669', 
-    fontSize: 12,
+    fontSize: 5,
   },
   statText: { 
     fontFamily: 'Inter-Bold', 
     color: '#334155', 
-    fontSize: 10,
+    fontSize: 5,
   },
 
   rulesContainer: {

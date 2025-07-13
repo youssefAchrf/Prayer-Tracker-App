@@ -159,7 +159,7 @@ const styles = StyleSheet.create({
   },
   topPlayerPoints: {
     fontFamily: 'Inter-Bold',
-    fontSize: 20,
+    fontSize: 17,
     color: '#1e293b',
     marginTop: 8,
   },
@@ -210,7 +210,7 @@ const styles = StyleSheet.create({
   youLabel: { 
     fontFamily: 'Inter-Medium', 
     color: '#059669', 
-    fontSize: 5,
+    fontSize: 12,
   },
   statText: { 
     fontFamily: 'Inter-Bold', 

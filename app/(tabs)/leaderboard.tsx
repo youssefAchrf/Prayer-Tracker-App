@@ -159,9 +159,10 @@ const styles = StyleSheet.create({
   },
   topPlayerPoints: {
     fontFamily: 'Inter-Bold',
-    fontSize: 17,
+    fontSize: 14,
     color: '#1e293b',
     marginTop: 8,
+    textAlign: 'center',
   },
   
   listHeader: {

@@ -215,7 +215,7 @@ const styles = StyleSheet.create({
   statText: { 
     fontFamily: 'Inter-Bold', 
     color: '#334155', 
-    fontSize: 16,
+    fontSize: 14,
   },
 
   rulesContainer: {

@@ -1,14 +1,14 @@
+
 // import React, { useState, useEffect } from 'react';
 // import { View, Text, StyleSheet, ScrollView, SafeAreaView, TouchableOpacity, Platform, StatusBar, ActivityIndicator } from 'react-native';
 // import { useLocalSearchParams, router } from 'expo-router';
 // import { LinearGradient } from 'expo-linear-gradient';
-// import { ArrowLeft, ArrowRight, Calendar as CalendarIcon } from 'lucide-react-native'; // Removed Sun, Moon, UserIcon imports as no longer needed for header design
+// import { ArrowLeft, ArrowRight, Lock } from 'lucide-react-native'; // Added Lock icon
 // import { PrayerCard } from '@/components/PrayerCard';
 // import { useSupabaseUser } from '@/contexts/SupabaseUserContext';
 // import { Prayer } from '@/types/prayer';
 // import { supabase } from '@/lib/supabase';
 
-// // This now correctly has all 5 prayers, without hardcoded times
 // const DEFAULT_PRAYERS: Omit<Prayer, 'time'>[] = [
 //     { name: 'Fajr', arabicName: 'الفجر' },
 //     { name: 'Dhuhr', arabicName: 'الظهر' },
@@ -49,7 +49,7 @@
 
 // export default function FriendPrayerDetailScreen() {
 //   const { friendId } = useLocalSearchParams<{ friendId: string }>();
-//   const { friends } = useSupabaseUser();
+//   const { friends } = useSupabaseUser(); // Access friends from context
   
 //   const [friendPrayers, setFriendPrayers] = useState<Prayer[]>([]);
 //   const [loading, setLoading] = useState(true);
@@ -60,8 +60,14 @@
 //     ? (friendship.requester.id === friendId ? friendship.requester : friendship.addressee) 
 //     : null;
 
+//   // Check if friend's profile is private
+//   const isFriendProfilePrivate = friendProfile?.is_private ?? false;
+
 //   useEffect(() => {
-//     if (!friendId) return;
+//     if (!friendId || isFriendProfilePrivate) { // Do not load if private
+//         setLoading(false);
+//         return;
+//     }
 
 //     const loadDataForDate = async () => {
 //       setLoading(true);
@@ -84,7 +90,7 @@
 //     };
 
 //     loadDataForDate();
-//   }, [friendId, displayedDate]); 
+//   }, [friendId, displayedDate, isFriendProfilePrivate]); // Add isFriendProfilePrivate to dependencies
 
 //   // Date navigation functions
 //   const goToPreviousDay = () => {
@@ -113,15 +119,12 @@
 //   return (
 //     <SafeAreaView style={styles.container}>
 //       <LinearGradient colors={['#059669', '#0d9488']} style={styles.header}>
-//         {/* Back button, positioned absolutely to the top-left */}
 //         <TouchableOpacity style={styles.backButton} onPress={() => router.back()}>
 //           <ArrowLeft size={24} color="#ffffff" />
 //         </TouchableOpacity>
 
-//         {/* Friend's Name Title - Centered below back button */}
 //         <Text style={styles.friendNameTitle}>{friendProfile.name}'s Prayers</Text>
         
-//         {/* Date Navigation UI - Centered below the title */}
 //         <View style={styles.dateNavigationContainer}>
 //           <TouchableOpacity onPress={goToPreviousDay} style={styles.dateArrowButton}>
 //             <ArrowLeft size={20} color="#ffffff" />
@@ -137,9 +140,17 @@
 //         <ActivityIndicator style={{ flex: 1, justifyContent: 'center' }} size="large" />
 //       ) : (
 //       <ScrollView style={styles.content}>
-//         {friendPrayers.map((prayer, index) => (
-//           <PrayerCard key={index} prayer={prayer} onStatusChange={() => {}} readOnly={true}/>
-//         ))}
+//         {isFriendProfilePrivate ? ( // Conditional render for private profile
+//             <View style={styles.privateProfileContainer}>
+//                 <Lock size={48} color="#9ca3af" />
+//                 <Text style={styles.privateProfileTitle}>Private Profile</Text>
+//                 <Text style={styles.privateProfileMessage}>{friendProfile.name} has chosen to keep their prayer data private.</Text>
+//             </View>
+//         ) : (
+//             friendPrayers.map((prayer, index) => (
+//                 <PrayerCard key={index} prayer={prayer} onStatusChange={() => {}} readOnly={true}/>
+//             ))
+//         )}
 //       </ScrollView>
 //       )}
 //     </SafeAreaView>
@@ -152,10 +163,10 @@
 //       padding: 20, 
 //       paddingTop: 40, 
 //       alignItems: 'center', 
-//       minHeight: 160, // Adjusted minHeight to give space for content
-//       justifyContent: 'space-between', // Distribute content vertically
-//       borderBottomLeftRadius: 24, // Added for curvature
-//       borderBottomRightRadius: 24, // Added for curvature
+//       minHeight: 160,
+//       justifyContent: 'space-between',
+//       borderBottomLeftRadius: 24,
+//       borderBottomRightRadius: 24,
 //     }, 
     
 //     backButton: { 
@@ -171,7 +182,7 @@
 //       fontSize: 24, 
 //       fontFamily: 'Inter-Bold',
 //       textAlign: 'center',
-//       marginBottom: 16, // Space below title
+//       marginBottom: 16,
 //     },
     
 //     dateNavigationContainer: {
@@ -199,16 +210,45 @@
 //     },
     
 //     content: { padding: 16 },
+//     // NEW: Private profile message styles
+//     privateProfileContainer: {
+//         backgroundColor: '#ffffff',
+//         borderRadius: 16,
+//         padding: 24,
+//         alignItems: 'center',
+//         justifyContent: 'center',
+//         marginTop: 50,
+//         marginBottom: 20,
+//         borderWidth: 1,
+//         borderColor: '#e5e7eb',
+//     },
+//     privateProfileTitle: {
+//         fontSize: 20,
+//         fontFamily: 'Inter-Bold',
+//         color: '#374151',
+//         marginTop: 15,
+//         marginBottom: 8,
+//         textAlign: 'center',
+//     },
+//     privateProfileMessage: {
+//         fontSize: 15,
+//         fontFamily: 'Inter-Regular',
+//         color: '#6b7280',
+//         textAlign: 'center',
+//         lineHeight: 22,
+//     },
 // });
-import React, { useState, useEffect } from 'react';
+
+import React, { useState, useEffect, useMemo } from 'react';
 import { View, Text, StyleSheet, ScrollView, SafeAreaView, TouchableOpacity, Platform, StatusBar, ActivityIndicator } from 'react-native';
 import { useLocalSearchParams, router } from 'expo-router';
 import { LinearGradient } from 'expo-linear-gradient';
-import { ArrowLeft, ArrowRight, Lock } from 'lucide-react-native'; // Added Lock icon
+import { ArrowLeft, ArrowRight, Lock } from 'lucide-react-native';
 import { PrayerCard } from '@/components/PrayerCard';
 import { useSupabaseUser } from '@/contexts/SupabaseUserContext';
 import { Prayer } from '@/types/prayer';
 import { supabase } from '@/lib/supabase';
+import { useTheme } from '@/contexts/ThemeContext';
 
 const DEFAULT_PRAYERS: Omit<Prayer, 'time'>[] = [
     { name: 'Fajr', arabicName: 'الفجر' },
@@ -249,8 +289,9 @@ const formatTo12Hour = (time24: string): string => {
 };
 
 export default function FriendPrayerDetailScreen() {
+  const { colors } = useTheme();
   const { friendId } = useLocalSearchParams<{ friendId: string }>();
-  const { friends } = useSupabaseUser(); // Access friends from context
+  const { friends } = useSupabaseUser();
   
   const [friendPrayers, setFriendPrayers] = useState<Prayer[]>([]);
   const [loading, setLoading] = useState(true);
@@ -261,11 +302,10 @@ export default function FriendPrayerDetailScreen() {
     ? (friendship.requester.id === friendId ? friendship.requester : friendship.addressee) 
     : null;
 
-  // Check if friend's profile is private
   const isFriendProfilePrivate = friendProfile?.is_private ?? false;
 
   useEffect(() => {
-    if (!friendId || isFriendProfilePrivate) { // Do not load if private
+    if (!friendId || isFriendProfilePrivate) {
         setLoading(false);
         return;
     }
@@ -278,7 +318,6 @@ export default function FriendPrayerDetailScreen() {
         fetchPrayerTimes(displayedDate), 
         supabase.from('prayers').select('prayer_name, status').eq('user_id', friendId).eq('prayer_date', dateString)
       ]);
-      console.log(`[Friend Detail Page] Raw prayer data for ${friendId} on ${dateString}:`, statusesResponse.data);
       const { data: prayerStatuses } = statusesResponse;
       const updatedPrayers = DEFAULT_PRAYERS.map(dp => ({
         ...dp,
@@ -291,9 +330,8 @@ export default function FriendPrayerDetailScreen() {
     };
 
     loadDataForDate();
-  }, [friendId, displayedDate, isFriendProfilePrivate]); // Add isFriendProfilePrivate to dependencies
+  }, [friendId, displayedDate, isFriendProfilePrivate]);
 
-  // Date navigation functions
   const goToPreviousDay = () => {
     setDisplayedDate(prevDate => {
       const newDate = new Date(prevDate);
@@ -310,10 +348,24 @@ export default function FriendPrayerDetailScreen() {
     });
   };
 
-  // Check if displayedDate is today to disable "Next Day" button
   const isToday = getLocalYYYYMMDD(displayedDate) === getLocalYYYYMMDD(new Date());
 
   const formattedDisplayedDate = displayedDate.toLocaleDateString('en-US', { weekday: 'long', month: 'long', day: 'numeric' });
+
+  const styles = useMemo(() => StyleSheet.create({
+    container: { flex: 1, backgroundColor: colors.background, paddingTop: Platform.OS === 'android' ? StatusBar.currentHeight : 0, },
+    header: { padding: 20, paddingTop: 40, alignItems: 'center', minHeight: 160, justifyContent: 'space-between', borderBottomLeftRadius: 24, borderBottomRightRadius: 24, }, 
+    backButton: { position: 'absolute', top: 40, left: 20, zIndex: 1, padding: 8 },
+    friendNameTitle: { color: '#fff', fontSize: 24, fontFamily: 'Inter-Bold', textAlign: 'center', marginBottom: 16, },
+    dateNavigationContainer: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 12, backgroundColor: 'rgba(255,255,255,0.2)', paddingVertical: 8, paddingHorizontal: 16, borderRadius: 99, },
+    dateArrowButton: { padding: 4, },
+    disabledArrowButton: { opacity: 0.5, },
+    dateText: { color: '#fff', fontSize: 16, fontFamily: 'Inter-Medium', minWidth: 150, textAlign: 'center', },
+    content: { padding: 16 },
+    privateProfileContainer: { backgroundColor: colors.card, borderRadius: 16, padding: 24, alignItems: 'center', justifyContent: 'center', marginTop: 50, marginBottom: 20, borderWidth: 1, borderColor: colors.border, },
+    privateProfileTitle: { fontSize: 20, fontFamily: 'Inter-Bold', color: colors.text, marginTop: 15, marginBottom: 8, textAlign: 'center', },
+    privateProfileMessage: { fontSize: 15, fontFamily: 'Inter-Regular', color: colors.textSecondary, textAlign: 'center', lineHeight: 22, },
+  }), [colors]);
 
   if (!friendProfile) return <View style={styles.container}><Text>Friend not found.</Text></View>
 
@@ -323,9 +375,7 @@ export default function FriendPrayerDetailScreen() {
         <TouchableOpacity style={styles.backButton} onPress={() => router.back()}>
           <ArrowLeft size={24} color="#ffffff" />
         </TouchableOpacity>
-
         <Text style={styles.friendNameTitle}>{friendProfile.name}'s Prayers</Text>
-        
         <View style={styles.dateNavigationContainer}>
           <TouchableOpacity onPress={goToPreviousDay} style={styles.dateArrowButton}>
             <ArrowLeft size={20} color="#ffffff" />
@@ -336,14 +386,13 @@ export default function FriendPrayerDetailScreen() {
           </TouchableOpacity>
         </View>
       </LinearGradient>
-
       {loading ? (
         <ActivityIndicator style={{ flex: 1, justifyContent: 'center' }} size="large" />
       ) : (
       <ScrollView style={styles.content}>
-        {isFriendProfilePrivate ? ( // Conditional render for private profile
+        {isFriendProfilePrivate ? (
             <View style={styles.privateProfileContainer}>
-                <Lock size={48} color="#9ca3af" />
+                <Lock size={48} color={colors.textSecondary} />
                 <Text style={styles.privateProfileTitle}>Private Profile</Text>
                 <Text style={styles.privateProfileMessage}>{friendProfile.name} has chosen to keep their prayer data private.</Text>
             </View>
@@ -357,85 +406,3 @@ export default function FriendPrayerDetailScreen() {
     </SafeAreaView>
   );
 }
-
-const styles = StyleSheet.create({
-    container: { flex: 1, backgroundColor: '#f9fafb', paddingTop: Platform.OS === 'android' ? StatusBar.currentHeight : 0, },
-    header: { 
-      padding: 20, 
-      paddingTop: 40, 
-      alignItems: 'center', 
-      minHeight: 160,
-      justifyContent: 'space-between',
-      borderBottomLeftRadius: 24,
-      borderBottomRightRadius: 24,
-    }, 
-    
-    backButton: { 
-      position: 'absolute', 
-      top: 40, 
-      left: 20, 
-      zIndex: 1, 
-      padding: 8 
-    },
-    
-    friendNameTitle: { 
-      color: '#fff', 
-      fontSize: 24, 
-      fontFamily: 'Inter-Bold',
-      textAlign: 'center',
-      marginBottom: 16,
-    },
-    
-    dateNavigationContainer: {
-        flexDirection: 'row',
-        alignItems: 'center',
-        justifyContent: 'center',
-        gap: 12, 
-        backgroundColor: 'rgba(255,255,255,0.2)',
-        paddingVertical: 8,
-        paddingHorizontal: 16,
-        borderRadius: 99,
-    },
-    dateArrowButton: {
-        padding: 4, 
-    },
-    disabledArrowButton: {
-        opacity: 0.5, 
-    },
-    dateText: { 
-        color: '#fff', 
-        fontSize: 16, 
-        fontFamily: 'Inter-Medium',
-        minWidth: 150, 
-        textAlign: 'center',
-    },
-    
-    content: { padding: 16 },
-    // NEW: Private profile message styles
-    privateProfileContainer: {
-        backgroundColor: '#ffffff',
-        borderRadius: 16,
-        padding: 24,
-        alignItems: 'center',
-        justifyContent: 'center',
-        marginTop: 50,
-        marginBottom: 20,
-        borderWidth: 1,
-        borderColor: '#e5e7eb',
-    },
-    privateProfileTitle: {
-        fontSize: 20,
-        fontFamily: 'Inter-Bold',
-        color: '#374151',
-        marginTop: 15,
-        marginBottom: 8,
-        textAlign: 'center',
-    },
-    privateProfileMessage: {
-        fontSize: 15,
-        fontFamily: 'Inter-Regular',
-        color: '#6b7280',
-        textAlign: 'center',
-        lineHeight: 22,
-    },
-});

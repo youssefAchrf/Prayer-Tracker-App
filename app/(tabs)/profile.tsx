@@ -1,6 +1,5 @@
 
-
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import {
   View,
   Text,
@@ -17,13 +16,14 @@ import {
   Image,
   Modal,
 } from 'react-native';
-import { User as UserIcon, Edit3 as EditIcon, Shield, Save, X, Flame, Settings as SettingsIcon, Calendar as CalendarIcon, PauseCircle, PlayCircle, Camera } from 'lucide-react-native';
+import { User as UserIcon, Edit3 as EditIcon, Shield, Save, X, Flame, Settings as SettingsIcon, Calendar as CalendarIcon, PauseCircle, PlayCircle, Camera, Sun, Moon } from 'lucide-react-native';
 import { useSupabaseUser } from '@/contexts/SupabaseUserContext';
 import { useAuth } from '@/contexts/AuthContext';
 import { ConfirmModal } from '@/components/ConfirmModal';
 import { StreakBadge } from '@/components/StreakBadge';
 import DateTimePickerModal from "react-native-modal-datetime-picker";
 import * as ImagePicker from 'expo-image-picker';
+import { useTheme } from '@/contexts/ThemeContext';
 
 // Helper to format date to YYYY-MM-DD
 const getYYYYMMDD = (date: Date): string => {
@@ -34,7 +34,8 @@ const getYYYYMMDD = (date: Date): string => {
 };
 
 // EXEMPTION PERIOD MODAL
-const ExemptionPeriodModal = ({ visible, onClose, onConfirm, initialDuration = 7 }) => {
+// Now takes theme colors as props to style itself correctly
+const ExemptionPeriodModal = ({ visible, onClose, onConfirm, colors, theme, initialDuration = 7 }) => {
   const [duration, setDuration] = useState(initialDuration);
   const [selectedDate, setSelectedDate] = useState<Date | null>(null);
   const [isDatePickerVisible, setDatePickerVisibility] = useState(false);
@@ -75,30 +76,50 @@ const ExemptionPeriodModal = ({ visible, onClose, onConfirm, initialDuration = 7
 
     onConfirm(startDateString, endDateString, finalDuration);
   };
+  
+  // Use a dynamic stylesheet for the modal
+  const modalStyles = StyleSheet.create({
+    modalOverlay: { flex: 1, backgroundColor: 'rgba(0,0,0,0.6)', justifyContent: 'center', alignItems: 'center', padding: 20 },
+    modalContent: { width: '100%', maxWidth: 400, backgroundColor: colors.card, borderRadius: 16, padding: 24, alignItems: 'center', elevation: 5 },
+    modalTitle: { fontSize: 20, fontFamily: 'Inter-Bold', marginBottom: 12, textAlign: 'center', color: colors.text },
+    modalMessage: { fontSize: 14, fontFamily: 'Inter-Regular', textAlign: 'center', color: colors.textSecondary, marginBottom: 20, lineHeight: 20 },
+    durationButtons: { flexDirection: 'row', gap: 10, marginBottom: 20 },
+    durationButton: { paddingVertical: 10, paddingHorizontal: 15, borderRadius: 10, backgroundColor: colors.buttonDisabled },
+    durationButtonActive: { backgroundColor: colors.primary },
+    durationButtonText: { fontFamily: 'Inter-Medium', color: colors.textSecondary },
+    durationButtonTextActive: { color: '#ffffff' },
+    datePickerContainer: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', width: '100%', marginBottom: 20 },
+    datePickerButton: { flexDirection: 'row', alignItems: 'center', gap: 8, paddingVertical: 10, paddingHorizontal: 15, borderRadius: 10, borderWidth: 1, borderColor: colors.border },
+    datePickerButtonText: { fontFamily: 'Inter-Medium', color: colors.text },
+    modalButtonRow: { flexDirection: 'row', justifyContent: 'space-between', width: '100%', marginTop: 10 },
+    modalButton: { flex: 1, paddingVertical: 12, borderRadius: 12, alignItems: 'center', marginHorizontal: 8 },
+    modalCancelButton: { backgroundColor: colors.buttonDisabled },
+    modalCancelButtonText: { color: colors.textSecondary, fontFamily: 'Inter-SemiBold' },
+    modalConfirmButton: { backgroundColor: colors.primary },
+    modalConfirmButtonText: { color: '#ffffff', fontFamily: 'Inter-SemiBold' },
+  });
 
   return (
     <Modal visible={visible} transparent={true} animationType="fade" onRequestClose={onClose}>
-      <View style={styles.modalOverlay}>
-        <View style={styles.modalContent}>
-          <Text style={styles.modalTitle}>Start Exemption Period</Text>
-          <Text style={styles.modalMessage}>Choose how long you need your prayer tracking paused:</Text>
-
-          <View style={styles.durationButtons}>
+      <View style={modalStyles.modalOverlay}>
+        <View style={modalStyles.modalContent}>
+          <Text style={modalStyles.modalTitle}>Start Exemption Period</Text>
+          <Text style={modalStyles.modalMessage}>Choose how long you need your prayer tracking paused:</Text>
+          <View style={modalStyles.durationButtons}>
             {[7, 10, 14].map(days => (
               <TouchableOpacity
                 key={days}
-                style={[styles.durationButton, duration === days && !selectedDate && styles.durationButtonActive]}
+                style={[modalStyles.durationButton, duration === days && !selectedDate && modalStyles.durationButtonActive]}
                 onPress={() => { setDuration(days); setSelectedDate(null); }}
               >
-                <Text style={[styles.durationButtonText, duration === days && !selectedDate && styles.durationButtonTextActive]}>{days} Days</Text>
+                <Text style={[modalStyles.durationButtonText, duration === days && !selectedDate && modalStyles.durationButtonTextActive]}>{days} Days</Text>
               </TouchableOpacity>
             ))}
           </View>
-
-          <View style={styles.datePickerContainer}>
-            <TouchableOpacity onPress={showDatePicker} style={styles.datePickerButton}>
-              <CalendarIcon size={20} color={selectedDate ? '#059669' : '#6b7280'} />
-              <Text style={styles.datePickerButtonText}>
+          <View style={modalStyles.datePickerContainer}>
+            <TouchableOpacity onPress={showDatePicker} style={modalStyles.datePickerButton}>
+              <CalendarIcon size={20} color={selectedDate ? colors.primary : colors.textSecondary} />
+              <Text style={modalStyles.datePickerButtonText}>
                 {selectedDate ? `Until: ${selectedDate.toLocaleDateString()}` : 'Or Pick an End Date'}
               </Text>
             </TouchableOpacity>
@@ -109,15 +130,15 @@ const ExemptionPeriodModal = ({ visible, onClose, onConfirm, initialDuration = 7
               onCancel={hideDatePicker}
               minimumDate={new Date()}
               date={selectedDate || new Date()}
+              isDarkModeEnabled={theme === 'dark'}
             />
           </View>
-
-          <View style={styles.modalButtonRow}>
-            <TouchableOpacity style={[styles.modalButton, styles.modalCancelButton]} onPress={onClose}>
-              <Text style={styles.modalCancelButtonText}>Cancel</Text>
+          <View style={modalStyles.modalButtonRow}>
+            <TouchableOpacity style={[modalStyles.modalButton, modalStyles.modalCancelButton]} onPress={onClose}>
+              <Text style={modalStyles.modalCancelButtonText}>Cancel</Text>
             </TouchableOpacity>
-            <TouchableOpacity style={[styles.modalButton, styles.modalConfirmButton]} onPress={confirmAction}>
-              <Text style={styles.modalConfirmButtonText}>Start Pause</Text>
+            <TouchableOpacity style={[modalStyles.modalButton, modalStyles.modalConfirmButton]} onPress={confirmAction}>
+              <Text style={modalStyles.modalConfirmButtonText}>Start Pause</Text>
             </TouchableOpacity>
           </View>
         </View>
@@ -128,6 +149,7 @@ const ExemptionPeriodModal = ({ visible, onClose, onConfirm, initialDuration = 7
 
 
 export default function ProfileScreen() {
+  const { theme, colors, toggleTheme } = useTheme();
   const { profile, updateProfile, loading: profileLoading, personalStreak, appSettings, updateAppSetting,
           currentExemption, isExemptedToday, startExemption, endExemption, loadCurrentExemption, updatePublicAvatar } = useSupabaseUser();
   const { signOut } = useAuth();
@@ -160,7 +182,6 @@ export default function ProfileScreen() {
         setExemptionModalVisible(false);
     }
   }, [isExemptedToday, isExemptionModalVisible]);
-
 
   useEffect(() => {
     setIsLockingSwitchEnabled(isLockingEnabled);
@@ -263,9 +284,69 @@ export default function ProfileScreen() {
       Alert.alert('Error', error.message || 'Failed to end exemption period.');
     }
   };
+  
+  const styles = useMemo(() => StyleSheet.create({
+    container: { flex: 1, backgroundColor: colors.background, paddingTop: Platform.OS === 'android' ? StatusBar.currentHeight : 0, },
+    header: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', paddingHorizontal: 20, paddingVertical: 20, backgroundColor: colors.background},
+    headerTitle: { fontSize: 24, fontFamily: 'Inter-Bold', textAlign: 'center', color: colors.text },
+    editButton: { padding: 8 },
+    content: { flex: 1, paddingHorizontal: 20, },
+    loadingText: { textAlign: 'center', marginTop: 50, fontSize: 16, color: colors.text },
+    profileCard: { backgroundColor: colors.card, borderRadius: 16, padding: 24, alignItems: 'center', marginTop: 20, marginBottom: 20 },
+    avatar: { width: 80, height: 80, borderRadius: 40, backgroundColor: colors.background, justifyContent: 'center', alignItems: 'center', marginBottom: 16, },
+    cameraButton: { position: 'absolute', bottom: 12, right: -4, backgroundColor: colors.primary, padding: 6, borderRadius: 99, borderWidth: 2, borderColor: colors.card },
+    editingContainer: { width: '100%', alignItems: 'center', },
+    nameInput: { width: '100%', borderWidth: 1, borderColor: colors.border, borderRadius: 12, padding: 12, fontSize: 18, fontFamily: 'Inter-SemiBold', textAlign: 'center', color: colors.text, marginBottom: 12, },
+    emailDisplay: { fontSize: 16, fontFamily: 'Inter-Regular', textAlign: 'center', color: colors.textSecondary, marginBottom: 16 },
+    editActions: { flexDirection: 'row', gap: 12 },
+    actionButton: { flexDirection: 'row', alignItems: 'center', paddingHorizontal: 16, paddingVertical: 8, borderRadius: 8, gap: 6 },
+    cancelButton: { backgroundColor: colors.buttonDisabled },
+    cancelButtonText: { color: colors.textSecondary, fontFamily: 'Inter-SemiBold' },
+    saveButton: { backgroundColor: colors.primary },
+    saveButtonText: { color: '#ffffff' },
+    profileInfo: { alignItems: 'center' },
+    nameContainer: { flexDirection: 'row', alignItems: 'center', gap: 6, marginBottom: 4 },
+    userName: { fontSize: 24, fontFamily: 'Inter-Bold', color: colors.text },
+    userEmail: { fontSize: 14, fontFamily: 'Inter-Regular', color: colors.textSecondary },
+    genderDisplay: { fontSize: 14, fontFamily: 'Inter-Regular', color: colors.textSecondary, marginTop: 4 },
+    settingsCard: { backgroundColor: colors.card, borderRadius: 16, padding: 20, marginBottom: 16 },
+    sectionTitle: { fontSize: 18, fontFamily: 'Inter-SemiBold', color: colors.text, marginBottom: 16 },
+    settingItem: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', paddingVertical: 8 },
+    settingInfo: { flexDirection: 'row', alignItems: 'center', flex: 1, gap: 12 },
+    settingText: { flex: 1 },
+    settingLabel: { fontSize: 16, fontFamily: 'Inter-Medium', color: colors.text },
+    settingDesc: { fontSize: 12, fontFamily: 'Inter-Regular', color: colors.textSecondary },
+    signOutSection: { marginTop: 20, marginBottom: 40 },
+    signOutButton: { backgroundColor: theme === 'dark' ? 'rgba(220, 38, 38, 0.15)' : '#fee2e2', paddingVertical: 14, borderRadius: 12, alignItems: 'center' },
+    signOutButtonText: { color: '#dc2626', fontFamily: 'Inter-SemiBold', fontSize: 16 },
+    locationSelector: { flexDirection: 'row', backgroundColor: colors.background, borderRadius: 12, padding: 4 },
+    locationButton: { flex: 1, paddingVertical: 10, borderRadius: 8, alignItems: 'center' },
+    locationButtonActive: { backgroundColor: colors.card, shadowColor: '#000', shadowOffset: { width: 0, height: 1 }, shadowOpacity: theme === 'dark' ? 0.3 : 0.1, shadowRadius: 2, elevation: 2 },
+    locationButtonText: { fontFamily: 'Inter-SemiBold', color: colors.textSecondary },
+    locationButtonTextActive: { color: colors.primary },
+    streakCard: { flexDirection: 'row', alignItems: 'center', backgroundColor: '#fff7ed', borderRadius: 16, padding: 20, marginBottom: 16, gap: 16 },
+    streakIconContainer: { backgroundColor: '#fed7aa', padding: 12, borderRadius: 99 },
+    streakNumber: { fontSize: 24, fontFamily: 'Inter-Bold', color: '#9a3412' },
+    streakLabel: { fontSize: 14, fontFamily: 'Inter-Medium', color: '#c2410c' },
+    genderSelectorContainer: { flexDirection: 'row', alignItems: 'center', marginTop: 12, marginBottom: 16, width: '100%', justifyContent: 'center' },
+    genderLabel: { fontSize: 16, fontFamily: 'Inter-Medium', color: colors.text, marginRight: 10 },
+    genderButtons: { flexDirection: 'row', backgroundColor: colors.background, borderRadius: 12, padding: 4, flex: 1 },
+    genderButton: { flex: 1, paddingVertical: 10, borderRadius: 8, alignItems: 'center' },
+    genderButtonActive: { backgroundColor: colors.card, shadowColor: '#000', shadowOffset: { width: 0, height: 1 }, shadowOpacity: theme === 'dark' ? 0.3 : 0.1, shadowRadius: 2, elevation: 2 },
+    genderButtonText: { fontFamily: 'Inter-SemiBold', color: colors.textSecondary },
+    genderButtonTextActive: { color: colors.primary },
+    startExemptionButton: { flexDirection: 'row', backgroundColor: colors.primary, paddingVertical: 12, borderRadius: 12, alignItems: 'center', justifyContent: 'center', gap: 8 },
+    startExemptionButtonText: { color: '#ffffff', fontFamily: 'Inter-SemiBold', fontSize: 16 },
+    exemptionActiveContainer: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', backgroundColor: '#4a2c0d', padding: 12, borderRadius: 12, borderWidth: 1, borderColor: '#b45309', gap: 12 },
+    exemptionTextContainer: { flex: 1 },
+    exemptionStatusText: { fontSize: 16, fontFamily: 'Inter-Bold', color: '#f59e0b' },
+    exemptionMessage: { fontSize: 13, fontFamily: 'Inter-Medium', color: '#fed7aa' },
+    endExemptionButton: { backgroundColor: theme === 'dark' ? 'rgba(5, 150, 105, 0.2)' : '#ecfdf5', paddingVertical: 8, paddingHorizontal: 12, borderRadius: 12, flexDirection: 'row', alignItems: 'center', gap: 4, borderWidth: 1, borderColor: colors.primary },
+    endExemptionButtonText: { color: colors.primary, fontFamily: 'Inter-SemiBold', fontSize: 14 },
+  }), [colors, theme]);
 
   if (profileLoading && !profile) {
-    return <SafeAreaView style={styles.container}><ActivityIndicator style={{ flex: 1 }} size="large" /></SafeAreaView>;
+    return <SafeAreaView style={styles.container}><ActivityIndicator style={{ flex: 1 }} size="large" color={colors.primary} /></SafeAreaView>;
   }
   if (!profile) {
     return (
@@ -298,25 +379,27 @@ export default function ProfileScreen() {
         visible={isExemptionModalVisible && profile.gender === 'female' && !isExemptedToday}
         onClose={() => setExemptionModalVisible(false)}
         onConfirm={handleStartExemption}
+        colors={colors}
+        theme={theme}
       />
 
       <View style={styles.header}>
         <Text style={styles.headerTitle}>Profile</Text>
         {!isEditing && (
           <TouchableOpacity style={styles.editButton} onPress={() => setIsEditing(true)}>
-            <EditIcon size={20} color="#059669" />
+            <EditIcon size={20} color={colors.primary} />
           </TouchableOpacity>
         )}
       </View>
 
-      <ScrollView style={styles.content}>
+      <ScrollView style={styles.content} showsVerticalScrollIndicator={false}>
         <View style={styles.profileCard}>
             <View>
               {profile.avatar_url ? (
                 <Image source={{ uri: profile.avatar_url }} style={styles.avatar} />
               ) : (
                 <View style={styles.avatar}>
-                  <UserIcon size={40} color="#6b7280" />
+                  <UserIcon size={40} color={colors.textSecondary} />
                 </View>
               )}
               <TouchableOpacity style={styles.cameraButton} onPress={handleUpdateAvatar}>
@@ -347,7 +430,7 @@ export default function ProfileScreen() {
                 </View>
 
                 <View style={styles.editActions}>
-                  <TouchableOpacity style={[styles.actionButton, styles.cancelButton]} onPress={handleCancel}><X size={16} color="#6b7280" /><Text style={styles.cancelButtonText}>Cancel</Text></TouchableOpacity>
+                  <TouchableOpacity style={[styles.actionButton, styles.cancelButton]} onPress={handleCancel}><X size={16} color={colors.textSecondary} /><Text style={styles.cancelButtonText}>Cancel</Text></TouchableOpacity>
                   <TouchableOpacity style={[styles.actionButton, styles.saveButton]} onPress={handleSave} disabled={isSaving}>
                     {isSaving ? <ActivityIndicator color="#ffffff" size="small"/> : <Save size={16} color="#ffffff" />}
                     <Text style={styles.saveButtonText}>Save</Text>
@@ -375,6 +458,24 @@ export default function ProfileScreen() {
                 <Text style={styles.streakLabel}>Perfect Day Streak</Text>
             </View>
         </View>
+        
+        <View style={styles.settingsCard}>
+          <Text style={styles.sectionTitle}>Appearance</Text>
+          <View style={styles.settingItem}>
+            <View style={styles.settingInfo}>
+              {theme === 'dark' ? <Moon size={20} color={colors.textSecondary} /> : <Sun size={20} color={colors.textSecondary} />}
+              <View style={styles.settingText}>
+                <Text style={styles.settingLabel}>Light Mode</Text>
+              </View>
+            </View>
+            <Switch 
+                value={theme === 'light'} 
+                onValueChange={toggleTheme} 
+                trackColor={{ false: '#333', true: '#86efac' }} 
+                thumbColor={theme === 'light' ? colors.primary : '#f4f3f4'} 
+            />
+          </View>
+        </View>
 
         {profile.gender === 'female' && (
           <View style={styles.settingsCard}>
@@ -390,7 +491,7 @@ export default function ProfileScreen() {
                   )}
                 </View>
                 <TouchableOpacity style={styles.endExemptionButton} onPress={handleEndExemption}>
-                  <PlayCircle size={20} color="#059669" />
+                  <PlayCircle size={20} color={colors.primary} />
                   <Text style={styles.endExemptionButtonText}>Resume Now</Text>
                 </TouchableOpacity>
               </View>
@@ -408,7 +509,7 @@ export default function ProfileScreen() {
                 <Text style={styles.sectionTitle}>Admin Settings</Text>
                 <View style={styles.settingItem}>
                     <View style={styles.settingInfo}>
-                        <SettingsIcon size={20} color="#6b7280" />
+                        <SettingsIcon size={20} color={colors.textSecondary} />
                         <View style={styles.settingText}>
                             <Text style={styles.settingLabel}>Restrict Late Logging</Text>
                             <Text style={styles.settingDesc}>Enforce 12-hour limit for all users</Text>
@@ -417,8 +518,8 @@ export default function ProfileScreen() {
                     <Switch 
                         value={isLockingSwitchEnabled} 
                         onValueChange={handleToggleLocking} 
-                        trackColor={{ false: '#f3f4f6', true: '#86efac' }} 
-                        thumbColor={isLockingSwitchEnabled ? '#059669' : '#d1d5db'} 
+                        trackColor={{ false: '#333', true: '#86efac' }} 
+                        thumbColor={isLockingSwitchEnabled ? colors.primary : '#f4f3f4'} 
                     />
                 </View>
             </View>
@@ -436,8 +537,8 @@ export default function ProfileScreen() {
         <View style={styles.settingsCard}>
           <Text style={styles.sectionTitle}>Privacy</Text>
           <View style={styles.settingItem}>
-            <View style={styles.settingInfo}><Shield size={20} color="#6b7280" /><View style={styles.settingText}><Text style={styles.settingLabel}>Private Profile</Text><Text style={styles.settingDesc}>Hide your prayer data from search</Text></View></View>
-            <Switch value={isPrivate} onValueChange={isEditing ? setIsPrivate : (val) => { setIsPrivate(val); updateProfile({ is_private: val }); }} trackColor={{ false: '#f3f4f6', true: '#86efac' }} thumbColor={isPrivate ? '#059669' : '#d1d5db'} />
+            <View style={styles.settingInfo}><Shield size={20} color={colors.textSecondary} /><View style={styles.settingText}><Text style={styles.settingLabel}>Private Profile</Text><Text style={styles.settingDesc}>Hide your prayers progress</Text></View></View>
+            <Switch value={isPrivate} onValueChange={isEditing ? setIsPrivate : (val) => { setIsPrivate(val); updateProfile({ is_private: val }); }} trackColor={{ false: '#333', true: '#86efac' }} thumbColor={isPrivate ? colors.primary : '#f4f3f4'} />
           </View>
         </View>
 
@@ -450,81 +551,3 @@ export default function ProfileScreen() {
     </SafeAreaView>
   );
 }
-
-const styles = StyleSheet.create({
-  container: { flex: 1, backgroundColor: '#f9fafb', paddingTop: Platform.OS === 'android' ? StatusBar.currentHeight : 0, },
-  header: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', paddingHorizontal: 20, paddingVertical: 20, backgroundColor: '#ffffff', borderBottomWidth: 1, borderBottomColor: '#e5e7eb', },
-  headerTitle: { fontSize: 24, fontFamily: 'Inter-Bold', color: '#1f2937', },
-  editButton: { padding: 8 },
-  content: { flex: 1, paddingHorizontal: 20, },
-  loadingText: { textAlign: 'center', marginTop: 50, fontSize: 16, },
-  profileCard: { backgroundColor: '#ffffff', borderRadius: 16, padding: 24, alignItems: 'center', marginTop: 20, marginBottom: 20, elevation: 4, shadowColor: '#000', shadowOpacity: 0.1, shadowRadius: 5 },
-  avatar: { width: 80, height: 80, borderRadius: 40, backgroundColor: '#f3f4f6', justifyContent: 'center', alignItems: 'center', marginBottom: 16, },
-  cameraButton: { position: 'absolute', bottom: 12, right: -4, backgroundColor: '#059669', padding: 6, borderRadius: 99, borderWidth: 2, borderColor: '#ffffff', },
-  editingContainer: { width: '100%', alignItems: 'center', },
-  nameInput: { width: '100%', borderWidth: 1, borderColor: '#d1d5db', borderRadius: 12, padding: 12, fontSize: 18, fontFamily: 'Inter-SemiBold', textAlign: 'center', color: '#1f2937', marginBottom: 12, },
-  emailDisplay: { fontSize: 16, fontFamily: 'Inter-Regular', textAlign: 'center', color: '#6b7280', marginBottom: 16, },
-  editActions: { flexDirection: 'row', gap: 12, },
-  actionButton: { flexDirection: 'row', alignItems: 'center', paddingHorizontal: 16, paddingVertical: 8, borderRadius: 8, gap: 6, },
-  cancelButton: { backgroundColor: '#f3f4f6' },
-  cancelButtonText: { color: '#6b7280' },
-  saveButton: { backgroundColor: '#059669' },
-  saveButtonText: { color: '#ffffff' },
-  profileInfo: { alignItems: 'center' },
-  nameContainer: { flexDirection: 'row', alignItems: 'center', gap: 6, marginBottom: 4 },
-  userName: { fontSize: 24, fontFamily: 'Inter-Bold', color: '#1f2937', },
-  userEmail: { fontSize: 14, fontFamily: 'Inter-Regular', color: '#6b7280', },
-  genderDisplay: { fontSize: 14, fontFamily: 'Inter-Regular', color: '#6b7280', marginTop: 4 },
-  settingsCard: { backgroundColor: '#ffffff', borderRadius: 16, padding: 20, marginBottom: 16, elevation: 4, shadowColor: '#000', shadowOpacity: 0.1, shadowRadius: 5 },
-  sectionTitle: { fontSize: 18, fontFamily: 'Inter-SemiBold', color: '#1f2937', marginBottom: 16, },
-  settingItem: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', paddingVertical: 8, },
-  settingInfo: { flexDirection: 'row', alignItems: 'center', flex: 1, gap: 12, },
-  settingText: { flex: 1 },
-  settingLabel: { fontSize: 16, fontFamily: 'Inter-Medium', color: '#1f2937', },
-  settingDesc: { fontSize: 12, fontFamily: 'Inter-Regular', color: '#6b7280', },
-  signOutSection: { marginTop: 20, marginBottom: 40, },
-  signOutButton: { backgroundColor: '#fee2e2', paddingVertical: 14, borderRadius: 12, alignItems: 'center', },
-  signOutButtonText: { color: '#dc2626', fontFamily: 'Inter-SemiBold', fontSize: 16, },
-  locationSelector: { flexDirection: 'row', backgroundColor: '#f3f4f6', borderRadius: 12, padding: 4, },
-  locationButton: { flex: 1, paddingVertical: 10, borderRadius: 8, alignItems: 'center', },
-  locationButtonActive: { backgroundColor: '#ffffff', shadowColor: '#000', shadowOffset: { width: 0, height: 1 }, shadowOpacity: 0.1, shadowRadius: 2, elevation: 2, },
-  locationButtonText: { fontFamily: 'Inter-SemiBold', color: '#6b7280', },
-  locationButtonTextActive: { color: '#059669', },
-  streakCard: { flexDirection: 'row', alignItems: 'center', backgroundColor: '#fff7ed', borderRadius: 16, padding: 20, marginBottom: 16, gap: 16, },
-  streakIconContainer: { backgroundColor: '#fed7aa', padding: 12, borderRadius: 99 },
-  streakNumber: { fontSize: 24, fontFamily: 'Inter-Bold', color: '#9a3412' },
-  streakLabel: { fontSize: 14, fontFamily: 'Inter-Medium', color: '#c2410c' },
-  genderSelectorContainer: { flexDirection: 'row', alignItems: 'center', marginTop: 12, marginBottom: 16, width: '100%', justifyContent: 'center' },
-  genderLabel: { fontSize: 16, fontFamily: 'Inter-Medium', color: '#1f2937', marginRight: 10 },
-  genderButtons: { flexDirection: 'row', backgroundColor: '#f3f4f6', borderRadius: 12, padding: 4, flex: 1, },
-  genderButton: { flex: 1, paddingVertical: 10, borderRadius: 8, alignItems: 'center', },
-  genderButtonActive: { backgroundColor: '#ffffff', shadowColor: '#000', shadowOffset: { width: 0, height: 1 }, shadowOpacity: 0.1, shadowRadius: 2, elevation: 2, },
-  genderButtonText: { fontFamily: 'Inter-SemiBold', color: '#6b7280' },
-  genderButtonTextActive: { color: '#059669' },
-  startExemptionButton: { flexDirection: 'row', backgroundColor: '#059669', paddingVertical: 12, borderRadius: 12, alignItems: 'center', justifyContent: 'center', gap: 8, },
-  startExemptionButtonText: { color: '#ffffff', fontFamily: 'Inter-SemiBold', fontSize: 16, },
-  exemptionActiveContainer: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', backgroundColor: '#fffbeb', padding: 12, borderRadius: 12, borderWidth: 1, borderColor: '#fde68a', gap: 12 },
-  exemptionTextContainer: { flex: 1, },
-  exemptionStatusText: { fontSize: 16, fontFamily: 'Inter-Bold', color: '#b45309', },
-  exemptionMessage: { fontSize: 13, fontFamily: 'Inter-Medium', color: '#b45309', },
-  endExemptionButton: { backgroundColor: '#ecfdf5', paddingVertical: 8, paddingHorizontal: 12, borderRadius: 12, flexDirection: 'row', alignItems: 'center', gap: 4, borderWidth: 1, borderColor: '#059669' },
-  endExemptionButtonText: { color: '#059669', fontFamily: 'Inter-SemiBold', fontSize: 14 },
-  modalOverlay: { flex: 1, backgroundColor: 'rgba(0,0,0,0.5)', justifyContent: 'center', alignItems: 'center', padding: 20 },
-  modalContent: { width: '100%', maxWidth: 400, backgroundColor: 'white', borderRadius: 16, padding: 24, alignItems: 'center', elevation: 5 },
-  modalTitle: { fontSize: 20, fontFamily: 'Inter-Bold', marginBottom: 12, textAlign: 'center' },
-  modalMessage: { fontSize: 14, fontFamily: 'Inter-Regular', textAlign: 'center', color: '#6b7280', marginBottom: 20, lineHeight: 20 },
-  durationButtons: { flexDirection: 'row', gap: 10, marginBottom: 20 },
-  durationButton: { paddingVertical: 10, paddingHorizontal: 15, borderRadius: 10, backgroundColor: '#f3f4f6', },
-  durationButtonActive: { backgroundColor: '#059669', },
-  durationButtonText: { fontFamily: 'Inter-Medium', color: '#6b7280' },
-  durationButtonTextActive: { color: '#ffffff' },
-  datePickerContainer: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', width: '100%', marginBottom: 20 },
-  datePickerButton: { flexDirection: 'row', alignItems: 'center', gap: 8, paddingVertical: 10, paddingHorizontal: 15, borderRadius: 10, borderWidth: 1, borderColor: '#d1d5db', },
-  datePickerButtonText: { fontFamily: 'Inter-Medium', color: '#1f2937' },
-  modalButtonRow: { flexDirection: 'row', justifyContent: 'space-between', width: '100%', marginTop: 10 },
-  modalButton: { flex: 1, paddingVertical: 12, borderRadius: 12, alignItems: 'center', marginHorizontal: 8 },
-  modalCancelButton: { backgroundColor: '#f3f4f6' },
-  modalCancelButtonText: { color: '#374151', fontFamily: 'Inter-SemiBold' },
-  modalConfirmButton: { backgroundColor: '#059669' },
-  modalConfirmButtonText: { color: '#ffffff', fontFamily: 'Inter-SemiBold' },
-});

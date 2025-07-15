@@ -1,3 +1,5 @@
+
+
 import React, { useState, useEffect } from 'react';
 import {
   View,
@@ -12,14 +14,16 @@ import {
   StatusBar,
   Alert,
   ActivityIndicator,
+  Image,
   Modal,
 } from 'react-native';
-import { User as UserIcon, Edit3 as EditIcon, Shield, Save, X, Flame, Settings as SettingsIcon, Calendar as CalendarIcon, PauseCircle, PlayCircle } from 'lucide-react-native';
+import { User as UserIcon, Edit3 as EditIcon, Shield, Save, X, Flame, Settings as SettingsIcon, Calendar as CalendarIcon, PauseCircle, PlayCircle, Camera } from 'lucide-react-native';
 import { useSupabaseUser } from '@/contexts/SupabaseUserContext';
 import { useAuth } from '@/contexts/AuthContext';
 import { ConfirmModal } from '@/components/ConfirmModal';
 import { StreakBadge } from '@/components/StreakBadge';
 import DateTimePickerModal from "react-native-modal-datetime-picker";
+import * as ImagePicker from 'expo-image-picker';
 
 // Helper to format date to YYYY-MM-DD
 const getYYYYMMDD = (date: Date): string => {
@@ -29,7 +33,7 @@ const getYYYYMMDD = (date: Date): string => {
   return `${year}-${month}-${day}`;
 };
 
-// EXEMPTION PERIOD MODAL - No changes needed here from last version
+// EXEMPTION PERIOD MODAL
 const ExemptionPeriodModal = ({ visible, onClose, onConfirm, initialDuration = 7 }) => {
   const [duration, setDuration] = useState(initialDuration);
   const [selectedDate, setSelectedDate] = useState<Date | null>(null);
@@ -125,7 +129,7 @@ const ExemptionPeriodModal = ({ visible, onClose, onConfirm, initialDuration = 7
 
 export default function ProfileScreen() {
   const { profile, updateProfile, loading: profileLoading, personalStreak, appSettings, updateAppSetting,
-          currentExemption, isExemptedToday, startExemption, endExemption, loadCurrentExemption } = useSupabaseUser();
+          currentExemption, isExemptedToday, startExemption, endExemption, loadCurrentExemption, updatePublicAvatar } = useSupabaseUser();
   const { signOut } = useAuth();
 
   const [isEditing, setIsEditing] = useState(false);
@@ -137,7 +141,7 @@ export default function ProfileScreen() {
   const [selectedGender, setSelectedGender] = useState<string | undefined>(profile?.gender || undefined);
 
   const [isSignOutModalVisible, setSignOutModalVisible] = useState(false);
-  const [isExemptionModalVisible, setExemptionModalVisible] = useState(false); // KEEP THIS STATE
+  const [isExemptionModalVisible, setExemptionModalVisible] = useState(false);
 
   const isLockingEnabled = appSettings.get('restrict_late_prayer_logging') ?? false;
   const [isLockingSwitchEnabled, setIsLockingSwitchEnabled] = useState(isLockingEnabled);
@@ -151,11 +155,9 @@ export default function ProfileScreen() {
     }
   }, [profile]);
 
-  // This useEffect ensures the modal closes if an exemption becomes active
-  // regardless of how it was triggered (e.g., if a previous attempt successfully created it).
   useEffect(() => {
     if (isExemptedToday && isExemptionModalVisible) {
-        setExemptionModalVisible(false); // Close modal if exemption is now active
+        setExemptionModalVisible(false);
     }
   }, [isExemptedToday, isExemptionModalVisible]);
 
@@ -163,6 +165,30 @@ export default function ProfileScreen() {
   useEffect(() => {
     setIsLockingSwitchEnabled(isLockingEnabled);
   }, [isLockingEnabled]);
+  
+  const handleUpdateAvatar = async () => {
+    const { status } = await ImagePicker.requestMediaLibraryPermissionsAsync();
+    if (status !== 'granted') {
+      Alert.alert('Permission Denied', 'We need camera roll permissions to update your profile picture.');
+      return;
+    }
+
+    let result = await ImagePicker.launchImageLibraryAsync({
+      mediaTypes: ImagePicker.MediaTypeOptions.Images,
+      allowsEditing: true,
+      aspect: [1, 1],
+      quality: 0.5,
+    });
+
+    if (!result.canceled) {
+      const { error } = await updatePublicAvatar(result.assets[0].uri);
+      if (error) {
+        Alert.alert('Upload Failed', error.message);
+      } else {
+        Alert.alert('Success', 'Your profile picture has been updated.');
+      }
+    }
+  };
 
   const handleSave = async () => {
     if (!profile) return;
@@ -220,13 +246,10 @@ export default function ProfileScreen() {
         message += ` It is paused for ${durationDays} days.`;
       }
       Alert.alert('Streak Paused', message);
-      // We rely on the `useEffect` above to set `isExemptionModalVisible(false)`
-      // once `isExemptedToday` in the context becomes true (after `loadCurrentExemption` finishes).
-      // This ensures the modal only closes once the new state is registered.
-      loadCurrentExemption(); // Ensure the context state is refreshed
+      loadCurrentExemption();
     } catch (error: any) {
       Alert.alert('Error', error.message || 'Failed to start exemption period.');
-      setExemptionModalVisible(false); // Close the modal even on error
+      setExemptionModalVisible(false);
     }
   };
 
@@ -235,8 +258,7 @@ export default function ProfileScreen() {
     try {
       await endExemption(currentExemption.id);
       Alert.alert('Streak Resumed', 'Prayer tracking has been resumed. Remember to log your prayers!');
-      loadCurrentExemption(); // Ensure the context state is refreshed
-      // The `useEffect` will handle closing the active exemption state, re-showing the "Start Exemption" button.
+      loadCurrentExemption();
     } catch (error: any) {
       Alert.alert('Error', error.message || 'Failed to end exemption period.');
     }
@@ -272,14 +294,9 @@ export default function ProfileScreen() {
           signOut();
         }}
       />
-      {/* Modal visibility:
-        1. `isExemptionModalVisible` (local state, set when "Start Exemption Period" button is pressed)
-        2. `profile.gender === 'female'` (must be a female user)
-        3. `!isExemptedToday` (must NOT already have an active exemption today, to prevent opening multiple modals)
-      */}
       <ExemptionPeriodModal
         visible={isExemptionModalVisible && profile.gender === 'female' && !isExemptedToday}
-        onClose={() => setExemptionModalVisible(false)} // This handles the "Cancel" button in the modal
+        onClose={() => setExemptionModalVisible(false)}
         onConfirm={handleStartExemption}
       />
 
@@ -294,7 +311,19 @@ export default function ProfileScreen() {
 
       <ScrollView style={styles.content}>
         <View style={styles.profileCard}>
-            <View style={styles.avatar}><UserIcon size={40} color="#6b7280" /></View>
+            <View>
+              {profile.avatar_url ? (
+                <Image source={{ uri: profile.avatar_url }} style={styles.avatar} />
+              ) : (
+                <View style={styles.avatar}>
+                  <UserIcon size={40} color="#6b7280" />
+                </View>
+              )}
+              <TouchableOpacity style={styles.cameraButton} onPress={handleUpdateAvatar}>
+                <Camera size={16} color="#ffffff" />
+              </TouchableOpacity>
+            </View>
+            
             {isEditing ? (
               <View style={styles.editingContainer}>
                 <TextInput style={styles.nameInput} value={editedName} onChangeText={setEditedName} placeholder="Enter your name" />
@@ -366,7 +395,6 @@ export default function ProfileScreen() {
                 </TouchableOpacity>
               </View>
             ) : (
-              // This button will only show if !isExemptedToday
               <TouchableOpacity style={styles.startExemptionButton} onPress={() => setExemptionModalVisible(true)}>
                 <PauseCircle size={20} color="#ffffff" />
                 <Text style={styles.startExemptionButtonText}>Start Exemption Period</Text>
@@ -430,8 +458,9 @@ const styles = StyleSheet.create({
   editButton: { padding: 8 },
   content: { flex: 1, paddingHorizontal: 20, },
   loadingText: { textAlign: 'center', marginTop: 50, fontSize: 16, },
-  profileCard: { backgroundColor: '#ffffff', borderRadius: 16, padding: 24, alignItems: 'center', marginTop: 20, marginBottom: 20, elevation: 4, },
+  profileCard: { backgroundColor: '#ffffff', borderRadius: 16, padding: 24, alignItems: 'center', marginTop: 20, marginBottom: 20, elevation: 4, shadowColor: '#000', shadowOpacity: 0.1, shadowRadius: 5 },
   avatar: { width: 80, height: 80, borderRadius: 40, backgroundColor: '#f3f4f6', justifyContent: 'center', alignItems: 'center', marginBottom: 16, },
+  cameraButton: { position: 'absolute', bottom: 12, right: -4, backgroundColor: '#059669', padding: 6, borderRadius: 99, borderWidth: 2, borderColor: '#ffffff', },
   editingContainer: { width: '100%', alignItems: 'center', },
   nameInput: { width: '100%', borderWidth: 1, borderColor: '#d1d5db', borderRadius: 12, padding: 12, fontSize: 18, fontFamily: 'Inter-SemiBold', textAlign: 'center', color: '#1f2937', marginBottom: 12, },
   emailDisplay: { fontSize: 16, fontFamily: 'Inter-Regular', textAlign: 'center', color: '#6b7280', marginBottom: 16, },
@@ -446,7 +475,7 @@ const styles = StyleSheet.create({
   userName: { fontSize: 24, fontFamily: 'Inter-Bold', color: '#1f2937', },
   userEmail: { fontSize: 14, fontFamily: 'Inter-Regular', color: '#6b7280', },
   genderDisplay: { fontSize: 14, fontFamily: 'Inter-Regular', color: '#6b7280', marginTop: 4 },
-  settingsCard: { backgroundColor: '#ffffff', borderRadius: 16, padding: 20, marginBottom: 16, elevation: 4, },
+  settingsCard: { backgroundColor: '#ffffff', borderRadius: 16, padding: 20, marginBottom: 16, elevation: 4, shadowColor: '#000', shadowOpacity: 0.1, shadowRadius: 5 },
   sectionTitle: { fontSize: 18, fontFamily: 'Inter-SemiBold', color: '#1f2937', marginBottom: 16, },
   settingItem: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', paddingVertical: 8, },
   settingInfo: { flexDirection: 'row', alignItems: 'center', flex: 1, gap: 12, },
@@ -465,7 +494,6 @@ const styles = StyleSheet.create({
   streakIconContainer: { backgroundColor: '#fed7aa', padding: 12, borderRadius: 99 },
   streakNumber: { fontSize: 24, fontFamily: 'Inter-Bold', color: '#9a3412' },
   streakLabel: { fontSize: 14, fontFamily: 'Inter-Medium', color: '#c2410c' },
-
   genderSelectorContainer: { flexDirection: 'row', alignItems: 'center', marginTop: 12, marginBottom: 16, width: '100%', justifyContent: 'center' },
   genderLabel: { fontSize: 16, fontFamily: 'Inter-Medium', color: '#1f2937', marginRight: 10 },
   genderButtons: { flexDirection: 'row', backgroundColor: '#f3f4f6', borderRadius: 12, padding: 4, flex: 1, },
@@ -473,7 +501,6 @@ const styles = StyleSheet.create({
   genderButtonActive: { backgroundColor: '#ffffff', shadowColor: '#000', shadowOffset: { width: 0, height: 1 }, shadowOpacity: 0.1, shadowRadius: 2, elevation: 2, },
   genderButtonText: { fontFamily: 'Inter-SemiBold', color: '#6b7280' },
   genderButtonTextActive: { color: '#059669' },
-
   startExemptionButton: { flexDirection: 'row', backgroundColor: '#059669', paddingVertical: 12, borderRadius: 12, alignItems: 'center', justifyContent: 'center', gap: 8, },
   startExemptionButtonText: { color: '#ffffff', fontFamily: 'Inter-SemiBold', fontSize: 16, },
   exemptionActiveContainer: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', backgroundColor: '#fffbeb', padding: 12, borderRadius: 12, borderWidth: 1, borderColor: '#fde68a', gap: 12 },
@@ -482,7 +509,6 @@ const styles = StyleSheet.create({
   exemptionMessage: { fontSize: 13, fontFamily: 'Inter-Medium', color: '#b45309', },
   endExemptionButton: { backgroundColor: '#ecfdf5', paddingVertical: 8, paddingHorizontal: 12, borderRadius: 12, flexDirection: 'row', alignItems: 'center', gap: 4, borderWidth: 1, borderColor: '#059669' },
   endExemptionButtonText: { color: '#059669', fontFamily: 'Inter-SemiBold', fontSize: 14 },
-
   modalOverlay: { flex: 1, backgroundColor: 'rgba(0,0,0,0.5)', justifyContent: 'center', alignItems: 'center', padding: 20 },
   modalContent: { width: '100%', maxWidth: 400, backgroundColor: 'white', borderRadius: 16, padding: 24, alignItems: 'center', elevation: 5 },
   modalTitle: { fontSize: 20, fontFamily: 'Inter-Bold', marginBottom: 12, textAlign: 'center' },

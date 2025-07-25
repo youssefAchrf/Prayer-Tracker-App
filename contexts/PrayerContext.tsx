@@ -1,4 +1,4 @@
-
+// contexts/PrayerContext.tsx
 import React, { createContext, useContext, useState, useEffect } from 'react';
 import { supabase } from '@/lib/supabase';
 import { useAuth } from '@/contexts/AuthContext';
@@ -10,7 +10,6 @@ interface PrayerContextType {
   displayedPrayers: Prayer[];
   updatePrayerStatus: (prayerName: string, status: PrayerStatus, date: Date) => void;
   loadPrayersForDate: (date: Date) => Promise<void>;
-  // --- FIX #1: ADD THE MISSING FUNCTION TO THE INTERFACE ---
   getPrayerDataForMonth: (year: number, month: number) => Promise<Array<{ prayer_date: string; status: PrayerStatus }>>;
   getPrayerDataForDateRange: (startDate: string, endDate: string) => Promise<Array<{ prayer_date: string; prayer_name: string; status: PrayerStatus }>>;
   loading: boolean;
@@ -146,7 +145,6 @@ export function PrayerProvider({ children }: { children: React.ReactNode }) {
   };
 
   return (
-    // --- FIX #2: ADD THE MISSING FUNCTION TO THE VALUE OBJECT ---
     <PrayerContext.Provider value={{ displayedPrayers, updatePrayerStatus, loadPrayersForDate, getPrayerDataForMonth, getPrayerDataForDateRange, loading }}>
       {children}
     </PrayerContext.Provider>

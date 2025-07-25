@@ -1,7 +1,6 @@
-// // app\_layout.tsx
-
+// // File: app/_layout.tsx
 // import { useEffect } from 'react';
-// import { Slot } from 'expo-router';
+// import { Slot, router, useSegments } from 'expo-router';
 // import { StatusBar } from 'expo-status-bar';
 // import { useFonts } from 'expo-font';
 // import {
@@ -11,18 +10,41 @@
 //   Inter_700Bold
 // } from '@expo-google-fonts/inter';
 // import * as SplashScreen from 'expo-splash-screen';
-// import { AuthProvider } from '@/contexts/AuthContext';
+// import { AuthProvider, useAuth } from '@/contexts/AuthContext';
 // import { PrayerProvider } from '@/contexts/PrayerContext';
 // import { SupabaseUserProvider } from '@/contexts/SupabaseUserContext';
-// import { useDisableZoom } from '@/hooks/useDisableZoom'; // <-- 1. IMPORT THE NEW HOOK
+// import { ThemeProvider } from '@/contexts/ThemeContext';
+// import { useDisableZoom } from '@/hooks/useDisableZoom';
 // import './global.css';
 
-
-// // Keep the splash screen visible while we fetch resources
 // SplashScreen.preventAutoHideAsync();
 
+// const InitialLayout = () => {
+//   const { user, loading } = useAuth();
+//   const segments = useSegments();
+  
+//   useEffect(() => {
+//     // Wait until the auth state is determined
+//     if (loading) return;
+
+//     const inAuthGroup = segments[0] === '(auth)';
+
+//     if (!user && !inAuthGroup) {
+//       // If the user is not signed in and is not on a page in the (auth) group,
+//       // redirect them to the login page.
+//       router.replace('/(auth)/login');
+//     } else if (user && inAuthGroup) {
+//       // If the user is signed in and on a page in the (auth) group (e.g., login page),
+//       // redirect them to the main part of the app.
+//       router.replace('/'); // Or any other default page
+//     }
+//   }, [user, segments, loading]);
+
+//   return <Slot />;
+// }
+
 // export default function RootLayout() {
-//     useDisableZoom(); // <-- 2. CALL THE HOOK AT THE TOP
+//   useDisableZoom();
 
 //   const [fontsLoaded, fontError] = useFonts({
 //     'Inter-Regular': Inter_400Regular,
@@ -33,37 +55,33 @@
 
 //   useEffect(() => {
 //     if (fontError) {
-//       // You can handle the font error here if needed
 //       console.error("Font loading error:", fontError);
 //     }
-//     // Hide the splash screen once fonts are loaded (or if there's an error)
 //     if (fontsLoaded || fontError) {
 //       SplashScreen.hideAsync();
 //     }
 //   }, [fontsLoaded, fontError]);
 
-//   // Prevent rendering until fonts are loaded
 //   if (!fontsLoaded && !fontError) {
 //     return null;
 //   }
 
-//   // This is the correct, nested structure for your providers.
-//   // AuthProvider is at the top, so everything inside it can use useAuth().
 //   return (
 //     <AuthProvider>
 //       <SupabaseUserProvider>
-//         <PrayerProvider>
-//           <StatusBar style="auto" />
-//           <Slot />
-//         </PrayerProvider>
+//         <ThemeProvider>
+//           <PrayerProvider>
+//             <StatusBar style="auto" />
+//             <InitialLayout />
+//           </PrayerProvider>
+//         </ThemeProvider>
 //       </SupabaseUserProvider>
 //     </AuthProvider>
 //   );
 // }
 
-
-import { useEffect } from 'react';
-import { Slot } from 'expo-router';
+import { useEffect, useState, useCallback } from 'react';
+import { Slot, router, useSegments } from 'expo-router';
 import { StatusBar } from 'expo-status-bar';
 import { useFonts } from 'expo-font';
 import {
@@ -73,14 +91,35 @@ import {
   Inter_700Bold
 } from '@expo-google-fonts/inter';
 import * as SplashScreen from 'expo-splash-screen';
-import { AuthProvider } from '@/contexts/AuthContext';
+import { AuthProvider, useAuth } from '@/contexts/AuthContext';
 import { PrayerProvider } from '@/contexts/PrayerContext';
 import { SupabaseUserProvider } from '@/contexts/SupabaseUserContext';
-import { ThemeProvider } from '@/contexts/ThemeContext'; // <-- 1. IMPORT THEME PROVIDER
+import { ThemeProvider } from '@/contexts/ThemeContext';
 import { useDisableZoom } from '@/hooks/useDisableZoom';
+import { AnimatedSplashScreen } from '@/components/AnimatedSplashScreen'; // Import the new component
+import { View } from 'react-native';
 import './global.css';
 
 SplashScreen.preventAutoHideAsync();
+
+const InitialLayout = () => {
+  const { user, loading } = useAuth();
+  const segments = useSegments();
+  
+  useEffect(() => {
+    if (loading) return;
+
+    const inAuthGroup = segments[0] === '(auth)';
+
+    if (!user && !inAuthGroup) {
+      router.replace('/(auth)/login');
+    } else if (user && inAuthGroup) {
+      router.replace('/');
+    }
+  }, [user, segments, loading]);
+
+  return <Slot />;
+}
 
 export default function RootLayout() {
   useDisableZoom();
@@ -92,32 +131,41 @@ export default function RootLayout() {
     'Inter-Bold': Inter_700Bold,
   });
 
-  useEffect(() => {
-    if (fontError) {
-      console.error("Font loading error:", fontError);
+  // This new state will track when our custom animation is finished
+  const [splashAnimationFinished, setSplashAnimationFinished] = useState(false);
+
+  const isAppReady = (fontsLoaded || fontError) && splashAnimationFinished;
+
+  const onLayoutRootView = useCallback(async () => {
+    // We will now only hide the native splash screen when the app is fully ready
+    if (isAppReady) {
+      await SplashScreen.hideAsync();
     }
-    if (fontsLoaded || fontError) {
-      SplashScreen.hideAsync();
-    }
-  }, [fontsLoaded, fontError]);
+  }, [isAppReady]);
 
   if (!fontsLoaded && !fontError) {
     return null;
   }
 
   return (
-    <AuthProvider>
-      <SupabaseUserProvider>
-        <ThemeProvider>
-          <PrayerProvider>
-            {/* The StatusBar will now adapt to the theme */}
-            <StatusBar style="auto" />
-            <Slot />
-          </PrayerProvider>
-        </ThemeProvider>
-      </SupabaseUserProvider>
-    </AuthProvider>
+    <View style={{ flex: 1 }} onLayout={onLayoutRootView}>
+        <AuthProvider>
+          <SupabaseUserProvider>
+            <ThemeProvider>
+                <PrayerProvider>
+                    <StatusBar style="auto" />
+                    {/* Conditionally show the animation or the app */}
+                    {isAppReady ? (
+                        <InitialLayout />
+                    ) : (
+                        <AnimatedSplashScreen 
+                            onAnimationFinish={() => setSplashAnimationFinished(true)}
+                        />
+                    )}
+                </PrayerProvider>
+            </ThemeProvider>
+          </SupabaseUserProvider>
+        </AuthProvider>
+    </View>
   );
 }
-
-

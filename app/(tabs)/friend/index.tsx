@@ -1,3 +1,4 @@
+
 import React, { useState, useCallback, useMemo } from 'react';
 import {
   View, Text, StyleSheet, ScrollView, SafeAreaView, TouchableOpacity,
@@ -5,18 +6,20 @@ import {
   UIManager, Image
 } from 'react-native';
 import { router } from 'expo-router';
-import { Plus, User as UserIcon, Mail, Check, X, ChevronRight, Trash2, MoreVertical, AlertTriangle, Flame, Image as ImageIcon, Lock } from 'lucide-react-native';
+import { Plus, User as UserIcon, Mail, Check, X, ChevronRight, Trash2, MoreVertical, AlertTriangle, Flame, Image as ImageIcon, Lock, XCircle } from 'lucide-react-native';
 import { useSupabaseUser } from '@/contexts/SupabaseUserContext';
 import { StreakBadge } from '@/components/StreakBadge';
 import { FriendPrayerStatus } from '@/components/FriendPrayerStatus';
 import * as ImagePicker from 'expo-image-picker';
 import { useTheme } from '@/contexts/ThemeContext';
+import { supabase } from '@/lib/supabase'; // Ensure supabase is imported
 
 if (Platform.OS === 'android' && UIManager.setLayoutAnimationEnabledExperimental) {
   UIManager.setLayoutAnimationEnabledExperimental(true);
 }
 
-const FriendActionSheet = ({ visible, onClose, onSelect, friend, colors, theme }) => {
+// --- Start of Change 1: Update FriendActionSheet to include the new option ---
+const FriendActionSheet = ({ visible, onClose, onSelect, friend, hasCustomAvatar, colors, theme }) => {
     if (!visible || !friend) return null;
     const handleAction = (action) => { onSelect(action, friend); onClose(); };
     const isPrivate = friend.profile?.is_private ?? false;
@@ -54,6 +57,13 @@ const FriendActionSheet = ({ visible, onClose, onSelect, friend, colors, theme }
                     <ImageIcon size={20} color={colors.text} />
                     <Text style={styles.actionButtonText}>Set Custom Image</Text>
                 </TouchableOpacity>
+                {/* Conditionally render the "Remove" button if a custom avatar exists */}
+                {hasCustomAvatar && (
+                    <TouchableOpacity style={styles.actionButton} onPress={() => handleAction('removeImage')}>
+                        <XCircle size={20} color={colors.text} />
+                        <Text style={styles.actionButtonText}>Remove Custom Image</Text>
+                    </TouchableOpacity>
+                )}
             </View>
             <View style={styles.actionSheetSection}>
                  <TouchableOpacity style={styles.actionButton} onPress={() => handleAction('remove')}>
@@ -69,6 +79,7 @@ const FriendActionSheet = ({ visible, onClose, onSelect, friend, colors, theme }
       </Modal>
     );
 };
+// --- End of Change 1 ---
 
 const ConfirmRemoveModal = ({ visible, onClose, onConfirm, friendName, colors }) => {
     if (!visible) return null;
@@ -231,7 +242,56 @@ export default function FriendsScreen() {
         }
     }
   };
+  
+  // --- Start of Change 2: Add the new handleRemoveAvatar function ---
+  const handleRemoveAvatar = async (friendship) => {
+    const friendProfile = friendship.requester_id === profile.id ? friendship.addressee : friendship.requester;
+    const friendId = friendProfile.id;
+    const customAvatarUrl = friendAvatars.get(friendId);
+  
+    if (!customAvatarUrl) {
+      setAlertInfo({ visible: true, title: 'Error', message: 'No custom avatar to remove.', showAcknowledgeButton: true });
+      return;
+    }
+  
+    // Extract the file path from the full URL to use for storage deletion
+    const avatarPath = customAvatarUrl.split('/friend-avatars/')[1];
+    
+    if (!avatarPath) {
+        setAlertInfo({ visible: true, title: 'Error', message: 'Could not determine avatar path.', showAcknowledgeButton: true });
+        return;
+    }
 
+    try {
+      // Step 1: Delete the image file from Supabase Storage
+      const { error: storageError } = await supabase.storage
+        .from('friend-avatars')
+        .remove([avatarPath]);
+  
+      if (storageError) throw storageError;
+  
+      // Step 2: Delete the record from the 'friend_avatars' database table
+      const { error: dbError } = await supabase
+        .from('friend_avatars')
+        .delete()
+        .eq('user_id', profile.id)
+        .eq('friend_id', friendId);
+  
+      if (dbError) throw dbError;
+  
+      // Step 3: Manually trigger a data refresh to update the UI
+      await fetchData();
+      setAlertInfo({ visible: true, title: 'Success!', message: 'Custom avatar removed.', showAcknowledgeButton: false });
+      setTimeout(() => setAlertInfo(prev => ({ ...prev, visible: false })), 1500);
+  
+    } catch (error) {
+      console.error('Error removing custom avatar:', error.message);
+      setAlertInfo({ visible: true, title: 'Error', message: 'Failed to remove custom avatar.', showAcknowledgeButton: true });
+    }
+  };
+  // --- End of Change 2 ---
+
+  // --- Start of Change 3: Update handleActionSelect to handle the new action ---
   const handleActionSelect = (action, friendship) => {
     const friendProfile = friendship.requester_id === profile.id ? friendship.addressee : friendship.requester;
     setActionSheetVisible(false);
@@ -239,9 +299,11 @@ export default function FriendsScreen() {
       case 'view': handleFriendPress(friendship); break;
       case 'remove': setSelectedFriend({ ...friendship, profile: friendProfile }); setConfirmModalVisible(true); break;
       case 'editImage': handleSetImage(friendship); break;
+      case 'removeImage': handleRemoveAvatar(friendship); break; // Add this new case
       default: break;
     }
   };
+  // --- End of Change 3 ---
 
   const onConfirmRemove = () => {
     if (selectedFriend) {
@@ -307,7 +369,17 @@ export default function FriendsScreen() {
 
   return (
     <SafeAreaView style={styles.container}>
-      <FriendActionSheet visible={isActionSheetVisible} onClose={() => setActionSheetVisible(false)} onSelect={handleActionSelect} friend={selectedFriend} colors={colors} theme={theme} />
+      {/* --- Start of Change 4: Update the FriendActionSheet call to pass the hasCustomAvatar prop --- */}
+      <FriendActionSheet
+        visible={isActionSheetVisible}
+        onClose={() => setActionSheetVisible(false)}
+        onSelect={handleActionSelect}
+        friend={selectedFriend}
+        hasCustomAvatar={!!(selectedFriend && friendAvatars.get(selectedFriend.profile.id))}
+        colors={colors}
+        theme={theme}
+      />
+      {/* --- End of Change 4 --- */}
       <ConfirmRemoveModal visible={isConfirmModalVisible} onClose={() => setConfirmModalVisible(false)} onConfirm={onConfirmRemove} friendName={selectedFriend?.profile?.name} colors={colors} />
       <CustomAlertModal visible={alertInfo.visible} title={alertInfo.title} message={alertInfo.message} onClose={() => setAlertInfo({ visible: false, title: '', message: '', showAcknowledgeButton: true })} showAcknowledgeButton={alertInfo.showAcknowledgeButton} colors={colors}/>
       <View style={styles.header}>

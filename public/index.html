@@ -1,40 +1,73 @@
 <!DOCTYPE html>
-<html lang="%LANG_ISO_CODE%">
+<html lang="en">
   <head>
-    <link rel="manifest" href="/manifest.json" />
-    <link rel="apple-touch-icon" href="/icon-192.png" />
-    <meta name="mobile-web-app-capable" content="yes" />
-    <meta name="mobile-web-app-status-bar-style" content="default" />
+    <!-- PWA essentials -->
     <meta charset="utf-8" />
-    <meta httpEquiv="X-UA-Compatible" content="IE=edge" />
+    <meta http-equiv="X-UA-Compatible" content="IE=edge" />
     <meta name="viewport" content="width=device-width, initial-scale=1, shrink-to-fit=no" />
-    <title>%WEB_TITLE%</title>
-    <!-- The `react-native-web` recommended style reset: https://necolas.github.io/react-native-web/docs/setup/#root-element -->
+
+    <!-- iOS PWA meta -->
+    <meta name="apple-mobile-web-app-capable" content="yes" />
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
+    <meta name="apple-mobile-web-app-title" content="Prayer Tracker" />
+    <link rel="apple-touch-icon" href="/icon-180.png" />
+
+    <!-- Android PWA -->
+    <meta name="theme-color" content="#059669" />
+
+    <!-- Favicon -->
+    <link rel="icon" href="/favicon.ico" />
+
+    <title>Prayer Tracker</title>
+
+    <!-- Optional: CSS (Expo or your own) -->
+    <link rel="preload" href="/_expo/static/css/global-27ad2ed2f4e46b90d659192818a537d1.css" as="style">
+    <link rel="stylesheet" href="/_expo/static/css/global-27ad2ed2f4e46b90d659192818a537d1.css">
+
+    <!-- Ensure full height layout for Expo/React Native Web -->
     <style id="expo-reset">
-      /* These styles make the body full-height */
-      html,
-      body {
+      html, body {
         height: 100%;
       }
-      /* These styles disable body scrolling if you are using <ScrollView> */
       body {
         overflow: hidden;
       }
-      /* These styles make the root element full-height */
       #root {
         display: flex;
         height: 100%;
         flex: 1;
       }
     </style>
+    <script>
+      const theme = localStorage.getItem('theme') || 'light';
+      const metaTheme = document.querySelector('meta[name="theme-color"]');
+      if (metaTheme) {
+        metaTheme.setAttribute('content', theme === 'dark' ? '#121212' : '#f9fafb');
+      }
+    </script>
   </head>
 
   <body>
-    <!-- Use static rendering with Expo Router to support running without JavaScript. -->
-    <noscript>
-      You need to enable JavaScript to run this app.
-    </noscript>
-    <!-- The root element for your Expo app. -->
+    <noscript>You need to enable JavaScript to run this app.</noscript>
     <div id="root"></div>
+
+    <!-- Service Worker -->
+    <script>
+      if ('serviceWorker' in navigator) {
+        window.addEventListener('load', () => {
+          navigator.serviceWorker.register('/service-worker.js')
+            .then(registration => {
+              console.log('Service Worker registered successfully!');
+            })
+            .catch(err => {
+              console.error('Service Worker registration failed:', err);
+            });
+        });
+      }
+    </script>
+
+    <!-- Main JS -->
+    <script src="/_expo/static/js/web/entry-3bac8f1b97b993d4ef9523ab89d3ade5.js" defer></script>
+    <script src="/_expo/static/js/web/entry-801b6e36d694dd671717d2d4f46604e3.js" defer></script>
   </body>
 </html>
